@@ -1,4 +1,3 @@
-// src/contexts/ThemeContext.tsx
 "use client"; // Mark this as a Client Component
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';

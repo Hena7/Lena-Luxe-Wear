@@ -1,121 +1,243 @@
 // src/app/product/[productId]/page.tsx
-"use client"; // Mark as client component to potentially add interactions later (like "Add to Cart")
+"use client"; // Must be a client component for hooks and interaction
 
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useCart } from '@/contexts/CartContext'; // Import useCart
+import type { Product } from '@prisma/client';
 import Image from 'next/image';
-import Link from 'next/link'; // For breadcrumbs or related products
-import { notFound } from 'next/navigation'; // To handle cases where the product ID doesn't exist
+import Link from 'next/link';
+// Removed 'notFound' as we handle it via state in client component
 
-// --- Data Fetching Simulation ---
-// Combine dummy data from both home and shop pages for lookup
-// !! IMPORTANT: This is temporary! In a real app, you'd fetch ONE product
-// !!            from your database/API using the productId.
-const allProductsData = [
-    { id: 'prod-001', name: 'Classic Cotton T-Shirt', price: 19.99, imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80', description: 'A comfortable and classic 100% cotton t-shirt.' },
-    { id: 'prod-002', name: 'Slim Fit Jeans', price: 49.95, imageUrl: 'https://images.unsplash.com/photo-1602293589914-9b29cdae68dc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80', description: 'Modern slim fit jeans with a touch of stretch for comfort.' },
-    { id: 'prod-003', name: 'Summer Floral Dress', price: 65.00, imageUrl: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80', description: 'Light and airy floral dress perfect for summer days.' },
-    { id: 'prod-004', name: 'Leather Belt', price: 24.50, imageUrl: 'https://images.unsplash.com/photo-1542181634-519e8a315436?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80', description: 'Genuine leather belt with a classic buckle.' },
-    { id: 'prod-005', name: 'Cozy Knit Sweater', price: 55.00, imageUrl: 'https://images.unsplash.com/photo-1616420879804-2a14f4173313?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80', description: 'Warm and cozy knit sweater for chilly evenings.' },
-    { id: 'prod-006', name: 'Canvas Sneakers', price: 39.99, imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80', description: 'Casual and durable canvas sneakers for everyday wear.' },
-    { id: 'prod-007', name: 'Wool Scarf', price: 29.95, imageUrl: 'https://images.unsplash.com/photo-1542060748-10c28b62716f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80', description: 'Soft wool scarf to keep you warm in style.' },
-    { id: 'prod-008', name: 'Stylish Sunglasses', price: 75.00, imageUrl: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80', description: 'Protect your eyes with these fashionable sunglasses.' },
-];
-
-// Function to simulate fetching a single product
-const getProductById = (id: string) => {
-    console.log("Searching for product with ID:", id); // Debug log
-    return allProductsData.find(p => p.id === id);
-};
-// --- End Data Fetching Simulation ---
-
-
-// The page component receives props including `params`
+// Interface for the props passed by Next.js containing route parameters
 interface ProductPageProps {
-    params: { productId: string }; // param name must match folder name [productId]
-    // searchParams?: { [key: string]: string | string[] | undefined }; // For query params if needed
+    params: { productId: string };
 }
 
 export default function ProductDetailPage({ params }: ProductPageProps) {
-  const { t, locale } = useLanguage();
-  const { productId } = params; // Extract the ID from the params object
+    const { t, locale } = useLanguage();
+    const { addItem } = useCart(); // Get addItem function from Cart Context
+    const { productId } = params;
 
-  // Find the product using the simulated fetch function
-  const product = getProductById(productId);
+    // State for the product data, loading, and error status
+    const [product, setProduct] = useState<Product | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
 
-  // Handle product not found - show a 404 page
-  if (!product) {
-      console.log("Product not found, triggering 404 for ID:", productId); // Debug log
-      notFound(); // This function from next/navigation renders the default 404 page
-  }
+    // Effect to fetch product data when the component mounts or productId changes
+    useEffect(() => {
+        if (!productId) {
+            setError("Product ID not found in URL.");
+            setIsLoading(false);
+            return; // Stop if no ID
+        }
 
-  // Basic price formatting (can be improved)
-  const formattedPrice = locale === 'am'
-    ? `${product.price.toFixed(2)} ብር` // Amharic Price
-    : `$${product.price.toFixed(2)}`; // English Price
+        const fetchProduct = async () => {
+            console.log(`Fetching product details for ID: ${productId}`);
+            setIsLoading(true);
+            setError(null);
+            setProduct(null); // Reset product state on new fetch
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-       {/* Breadcrumbs (optional but good UX) */}
-       <div className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-         <Link href="/" className="hover:underline">{t('navHome')}</Link>
-         {' / '}
-         <Link href="/shop" className="hover:underline">{t('navShop')}</Link>
-         {' / '}
-         <span className="font-semibold text-gray-700 dark:text-gray-300">{product.name}</span>
-       </div>
+            try {
+                const apiUrl = `/api/products/${productId}`;
+                const response = await fetch(apiUrl);
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-        {/* Image Column */}
-        <div className="relative aspect-square overflow-hidden rounded-lg shadow-lg">
-             <Image
-                src={product.imageUrl}
-                alt={product.name}
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw" // Image takes full width on mobile, half on desktop
-                className="object-cover"
-                priority // Prioritize loading the main product image
-             />
-        </div>
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({})); // Try to get error message from API
+                    if (response.status === 404) {
+                        setError(errorData.message || `Product with ID ${productId} not found.`);
+                    } else {
+                        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                    }
+                    setProduct(null);
+                } else {
+                    const data: Product = await response.json();
+                    setProduct(data); // Set fetched product data
+                    console.log("Product fetched successfully:", data);
+                }
+            } catch (err) {
+                console.error(`Failed to fetch product ${productId}:`, err);
+                setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching product details.');
+                setProduct(null);
+            } finally {
+                setIsLoading(false);
+                console.log("Product detail fetch finished.");
+            }
+        };
 
-        {/* Details Column */}
-        <div>
-          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            {product.name}
-          </h1>
-          <p className="text-2xl font-semibold text-purple-600 dark:text-purple-400 mb-6">
-            {formattedPrice}
-          </p>
+        fetchProduct();
 
-          {/* Description */}
-          <div className="mb-6 prose dark:prose-invert max-w-none">
-            {/* Using Tailwind Prose for nice text formatting */}
-            <h2 className="text-xl font-semibold mb-2">{locale === 'am' ? 'መግለጫ' : 'Description'}</h2>
-            <p>{product.description || (locale === 'am' ? 'መግለጫ የለም።' : 'No description available.')}</p>
+    }, [productId]); // Dependency array includes productId
+
+    // Handler for the Add to Cart button
+    const handleAddToCart = () => {
+        if (product) {
+            console.log(`Adding ${product.name} (ID: ${product.id}) to cart`);
+            addItem(product, 1); // Use the addItem function from context
+            // Simple feedback - consider a more user-friendly notification/toast later
+            alert("added to cart!");
+        } else {
+            console.error("Cannot add to cart, product data is not available.");
+            alert('Could not add to cart. Please try again.');
+        }
+    };
+
+    // --- Render Logic ---
+
+    // 1. Loading State
+    if (isLoading) {
+        return (
+            <div className="container mx-auto px-4 py-20 text-center">
+                 {/* Basic Loading Skeleton */}
+                 <div className="animate-pulse space-y-8">
+                      <div className="h-8 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mx-auto mb-10"></div> {/* Breadcrumbs */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+                           <div className="aspect-square bg-gray-300 dark:bg-gray-700 rounded-lg"></div> {/* Image */}
+                           <div className="space-y-4">
+                                <div className="h-10 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div> {/* Title */}
+                                <div className="h-8 bg-gray-300 dark:bg-gray-700 rounded w-1/4"></div> {/* Price */}
+                                <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-1/2 mt-4"></div> {/* Desc Title */}
+                                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded"></div> {/* Desc Line */}
+                                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded"></div> {/* Desc Line */}
+                                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-5/6"></div> {/* Desc Line */}
+                                <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded w-full md:w-1/2 mt-6"></div> {/* Button */}
+                                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/4 mt-2"></div> {/* Stock */}
+                           </div>
+                      </div>
+                 </div>
+            </div>
+        );
+    }
+
+    // 2. Error State
+    if (error) {
+         return (
+            <div className="container mx-auto px-4 py-20 text-center">
+               <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded relative max-w-lg mx-auto" role="alert">
+                 <strong className="font-bold">{locale === 'am' ? 'ስህተት፡ ' : 'Error: '}</strong>
+                 <span className="block sm:inline">{error}</span>
+               </div>
+               <Link href="/shop" className="mt-6 inline-block text-purple-600 dark:text-purple-400 hover:underline font-medium">
+                   ← {locale === 'am' ? 'ወደ መሸጫ ተመለስ' : 'Return to Shop'}
+               </Link>
+            </div>
+         );
+    }
+
+    // 3. Product Not Found State (covered by !product check after loading/error checks)
+    if (!product) {
+         return (
+            <div className="container mx-auto px-4 py-20 text-center text-gray-600 dark:text-gray-400">
+               <p>{locale === 'am' ? 'ይህ ምርት ሊገኝ አልቻለም።' : 'This product could not be found.'}</p>
+               <Link href="/shop" className="mt-6 inline-block text-purple-600 dark:text-purple-400 hover:underline font-medium">
+                   ← {locale === 'am' ? 'ወደ መሸጫ ተመለስ' : 'Return to Shop'}
+                </Link>
+            </div>
+         );
+    }
+
+    // 4. --- Render Actual Product Details ---
+    const formattedPrice = locale === 'am'
+      ? `${product.price.toFixed(2)} ብር`
+      : `$${product.price.toFixed(2)}`;
+
+    const isOutOfStock = product.stock <= 0;
+
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+         {/* Breadcrumbs */}
+         <div className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+           <Link href="/" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200">
+             {t('navHome')}
+           </Link>
+           <span className="mx-2">/</span>
+           <Link href="/shop" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200">
+             {t('navShop')}
+           </Link>
+            <span className="mx-2">/</span>
+           <span className="font-semibold text-gray-700 dark:text-gray-300 truncate">{product.name}</span>
+         </div>
+
+        {/* Main Product Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+
+          {/* Image Column */}
+          <div className="relative aspect-square overflow-hidden rounded-lg shadow-lg bg-gray-100 dark:bg-gray-800">
+               <Image
+                  src={product.imageUrl || '/placeholder-image.png'} // Add fallback image path
+                  alt={product.name}
+                  fill
+                  sizes="(max-width: 768px) 90vw, 45vw" // Adjust sizes based on layout
+                  className="object-contain p-4" // Use 'object-contain' if images aren't perfectly square
+                  priority // Load this image first
+                  onError={(e) => {
+                     // Optional: Handle image loading errors (e.g., show placeholder)
+                     (e.target as HTMLImageElement).src = '/placeholder-image.png';
+                     (e.target as HTMLImageElement).srcset = '';
+                  }}
+               />
+               {isOutOfStock && (
+                   <div className="absolute top-4 left-4 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
+                       {locale === 'am' ? 'አልቋል' : 'Out of Stock'}
+                   </div>
+               )}
           </div>
 
-          {/* Add to Cart Button (Placeholder) */}
-          <div className="mt-8">
-             <button className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded transition duration-300 disabled:opacity-50"
-               // Add onClick handler later for cart functionality
-               // disabled={!product.inStock} // Example: disable if out of stock
-             >
-                {locale === 'am' ? 'ወደ ጋሪ ጨምር' : 'Add to Cart'}
-             </button>
+          {/* Details Column */}
+          <div className="flex flex-col justify-center"> {/* Center content vertically if needed */}
+            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-gray-900 dark:text-white mb-3">
+              {product.name}
+            </h1>
+            <p className="text-2xl font-semibold text-purple-600 dark:text-purple-400 mb-6">
+              {formattedPrice}
+            </p>
+
+            {/* Description */}
+            {product.description && (
+              <div className="mb-6 prose prose-sm sm:prose-base dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                {/* Using Tailwind Prose plugin for nice formatting */}
+                {/* <h2 className="text-xl font-semibold mb-2">{locale === 'am' ? 'መግለጫ' : 'Description'}</h2> */}
+                <p>{product.description}</p>
+              </div>
+            )}
+            {!product.description && (
+                 <p className="mb-6 text-gray-500 dark:text-gray-400 italic">{locale === 'am' ? 'መግለጫ የለም።' : 'No description available.'}</p>
+             )}
+
+            {/* Add to Cart Button & Stock */}
+            <div className="mt-auto pt-6"> {/* Push button towards bottom */}
+               <button
+                  onClick={handleAddToCart}
+                  disabled={isOutOfStock}
+                  className={`w-full flex items-center justify-center rounded-md border border-transparent bg-purple-600 py-3 px-8 text-base font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-50 dark:focus:ring-offset-gray-900 transition duration-150 ease-in-out ${isOutOfStock ? 'opacity-50 cursor-not-allowed bg-gray-500 hover:bg-gray-500' : ''}`}
+                >
+                  {isOutOfStock
+                    ? (locale === 'am' ? 'አልቋል' : 'Out of Stock')
+                    : (locale === 'am' ? 'ወደ ጋሪ ጨምር' : 'Add to Cart')
+                  }
+               </button>
+               {!isOutOfStock && (
+                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 text-center md:text-left">
+                      {locale === 'am' ? `ክምችት፡ ${product.stock} ቀርቷል።` : `${product.stock} items left in stock.`}
+                 </p>
+               )}
+                {isOutOfStock && (
+                 <p className="text-sm text-red-600 dark:text-red-400 mt-3 text-center md:text-left">
+                     {locale === 'am' ? 'ይህ እቃ በአሁኑ ጊዜ አልቋል።' : 'This item is currently out of stock.'}
+                 </p>
+                )}
+            </div>
           </div>
-
-          {/* Other details like size/color selectors would go here */}
-
         </div>
-      </div>
 
-      {/* Related Products Section (Placeholder) */}
-      <div className="mt-16">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
-            {locale === 'am' ? 'ተዛማጅ ምርቶች' : 'Related Products'}
-          </h2>
-          {/* You could fetch and display other ProductCards here */}
-          <p className="text-gray-500 dark:text-gray-400">[ Related products will appear here / ተዛማጅ ምርቶች እዚህ ይታያሉ ]</p>
+        {/* Related Products Section (Placeholder - fetch and display logic needed) */}
+        {/* <div className="mt-16 pt-10 border-t border-gray-200 dark:border-gray-700">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
+              {locale === 'am' ? 'ተዛማጅ ምርቶች' : 'Related Products'}
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400">[ Related products could be displayed here using ProductCard components ]</p>
+            {/* Example: Render more ProductCards fetched based on current product's category *}
+        </div> */}
       </div>
-    </div>
-  );
+    );
 }

@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,58 +9,93 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- Application Models ---
+
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  password    String
-  phoneNumber String?  @unique // Optional phone number, unique to prevent duplicates
-  role        String   @default("user") // "user" or "admin"
-  cart        Cart[]
-  orders      Order[]
+  id            String    @id @default(cuid()) // Unique ID (string, cuid is recommended)
+  email         String    @unique // User's email, must be unique
+  name          String?   // User's name (optional, indicated by ?)
+  phoneNumber   String    // User's phone number (required for delivery)
+  passwordHash  String    // Store hashed password, NEVER plain text
+  // address       Address?  // Example: Relation to an Address model (optional, one-to-one) - We can add this later
+  createdAt     DateTime  @default(now()) // Timestamp when user was created
+  updatedAt     DateTime  @updatedAt // Timestamp when user was last updated
+
+  // Add relations later (e.g., Orders, Reviews)
+   orders Order[]
 }
 
 model Product {
-  id          String      @id @default(uuid())
-  name        String
-  description String
-  price       Float
-  image       String
-  stock       Int
-  cartItems   CartItem[]
-  orderItems  OrderItem[] // Link to orders
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  price        Float     // Use Float for prices (or Decimal if exact precision is critical)
+  imageUrl     String
+  stock        Int       @default(0) // Track inventory count, default to 0
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Add relations later (e.g., to Category model, OrderItems)
+   category   Category? @relation(fields: [categoryId], references: [id])
+   categoryId String?
+   orderItems OrderItem[]
 }
 
-model Cart {
-  id        String     @id @default(uuid())
-  userId    String
-  user      User       @relation(fields: [userId], references: [id])
-  items     CartItem[]
-}
 
-model CartItem {
-  id        String  @id @default(uuid())
-  cartId    String
-  productId String
-  quantity  Int
-  cart      Cart    @relation(fields: [cartId], references: [id])
-  product   Product @relation(fields: [productId], references: [id])
+
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique // Category name (e.g., "T-Shirts", "Jeans")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relation field: A Category has many Products
+  products  Product[]
 }
 
 model Order {
-  id        String      @id @default(uuid())
-  userId    String
-  user      User        @relation(fields: [userId], references: [id])
-  total     Float
-  status    String      @default("pending")
-  createdAt DateTime    @default(now())
-  items     OrderItem[] // Link to ordered products
+  id          String      @id @default(cuid())
+  totalAmount Float       // Total price for the order
+  status      OrderStatus @default(PENDING) // Order status (e.g., PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relation fields: Belongs to one User
+  user        User        @relation(fields: [userId], references: [id])
+  userId      String      // Foreign key linking to User table
+
+  // Relation field: Has many OrderItems
+  items       OrderItem[]
+
+  // We could add shipping address details here later, or link to an Address model
+  // shippingAddress String?
+  // billingAddress  String?
 }
 
+// Enum for Order Status - Defines allowed string values
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+// Relation table between Order and Product
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  productId String
-  quantity  Int
-  order     Order   @relation(fields: [orderId], references: [id])
-  product   Product @relation(fields: [productId], references: [id])
+  id        String   @id @default(cuid())
+  quantity  Int      // How many of this product were ordered
+  price     Float    // Price of the product *at the time of order* (important!)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation fields: Belongs to one Order
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String   // Foreign key linking to Order table
+
+  // Relation fields: Refers to one Product
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String   // Foreign key linking to Product table
 }

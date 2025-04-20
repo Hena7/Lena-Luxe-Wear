@@ -48,7 +48,7 @@ export default function RegisterPage() {
           placeholder="Phone Number (optional)"
           className="border p-2 w-full"
         />
-        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+        <button type="submit" className="bg-purple-500 text-white px-4 py-2 rounded">
           Register
         </button>
       </form>

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext"; // Import language hook
-import ProductCard from "@/components/products/ProductCard"; // Import the ProductCard
+import ProductCard from "@/components/products/ProductCard";
 // import { featuredProductsData } from "@/components/sampleData";
 
 const featuredProductsData = [
