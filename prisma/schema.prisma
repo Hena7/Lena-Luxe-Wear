@@ -11,18 +11,37 @@ datasource db {
 
 // --- Application Models ---
 
-model User {
-  id            String    @id @default(cuid()) // Unique ID (string, cuid is recommended)
-  email         String    @unique // User's email, must be unique
-  name          String?   // User's name (optional, indicated by ?)
-  phoneNumber   String    // User's phone number (required for delivery)
-  passwordHash  String    // Store hashed password, NEVER plain text
-  // address       Address?  // Example: Relation to an Address model (optional, one-to-one) - We can add this later
-  createdAt     DateTime  @default(now()) // Timestamp when user was created
-  updatedAt     DateTime  @updatedAt // Timestamp when user was last updated
+// model User {
+//   id            String    @id @default(cuid()) // Unique ID (string, cuid is recommended)
+//   email         String    @unique // User's email, must be unique
+//   name          String?   // User's name (optional, indicated by ?)
+//   phoneNumber   String    // User's phone number (required for delivery)
+//   passwordHash  String    // Store hashed password, NEVER plain text
+//   // address       Address?  // Example: Relation to an Address model (optional, one-to-one) - We can add this later
+//   createdAt     DateTime  @default(now()) // Timestamp when user was created
+//   updatedAt     DateTime  @updatedAt // Timestamp when user was last updated
 
-  // Add relations later (e.g., Orders, Reviews)
-   orders Order[]
+//   // Add relations later (e.g., Orders, Reviews)
+//    orders Order[]
+// }
+
+// Define user roles
+enum Role {
+  CUSTOMER // Default role
+  ADMIN    // Administrator role
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  phoneNumber   String
+  passwordHash  String
+  role          Role      @default(CUSTOMER) // Add role field, default to CUSTOMER
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  orders        Order[]
 }
 
 model Product {
@@ -99,3 +118,4 @@ model OrderItem {
   product   Product  @relation(fields: [productId], references: [id])
   productId String   // Foreign key linking to Product table
 }
+

@@ -1,59 +1,33 @@
-"use client";
+// src/app/admin/page.tsx
+// This can be a Server Component initially if just displaying info
+// Or make it Client if interactions are needed immediately
 
-import { useState } from "react";
+import React from 'react';
+// You might fetch admin-specific data here later using server-side functions
+// or call API routes protected by the same admin check.
 
-export default function Admin() {
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+export default function AdminDashboardPage() {
 
-  const addProduct = async () => {
-    const res = await fetch("/api/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, price, imageUrl }),
-    });
-
-    if (res.ok) {
-      alert("Product added successfully!");
-      setName("");
-      setPrice("");
-      setImageUrl("");
-    } else {
-      alert("Failed to add product");
-    }
-  };
+  // Add server-side checks or data fetching if needed
+  // Example: const users = await getAdminUserData();
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-4">
-      <h1 className="text-2xl font-bold">Add Product</h1>
-      <input
-        type="text"
-        placeholder="Product Name"
-        className="p-2 border rounded mb-2"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <input
-        type="number"
-        placeholder="Price"
-        className="p-2 border rounded mb-2"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-      />
-      <input
-        type="text"
-        placeholder="Image URL"
-        className="p-2 border rounded mb-2"
-        value={imageUrl}
-        onChange={(e) => setImageUrl(e.target.value)}
-      />
-      <button
-        onClick={addProduct}
-        className="px-4 py-2 bg-blue-500 text-white rounded"
-      >
-        Add Product
-      </button>
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-6">
+        Admin Dashboard
+      </h1>
+      <p className="text-gray-700 dark:text-gray-300">
+        Welcome, Admin! This area is restricted.
+      </p>
+      {/* Add links to other admin sections later */}
+      <div className="mt-8 space-y-4">
+           <p className="text-lg font-medium">Admin Sections:</p>
+           {/* Add links to pages you'll create later */}
+           {/* <Link href="/admin/users" className="...">View Users</Link> */}
+           {/* <Link href="/admin/orders" className="...">View All Orders</Link> */}
+           {/* <Link href="/admin/products" className="...">Manage Products</Link> */}
+           <p className="text-sm text-gray-500">(More admin sections coming soon...)</p>
+      </div>
     </div>
   );
 }

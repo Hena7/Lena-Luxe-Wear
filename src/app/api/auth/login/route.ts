@@ -43,12 +43,13 @@ export async function POST(request: Request) {
         }
 
         // --- Login Successful - Generate JWT and Set Cookie ---
-
+      
        
             // 1. Prepare JWT Payload
             const tokenPayload = {
                 userId: user.id,
                 email: user.email,
+                role: user.role, // <-- INCLUDE THE ROLE HERE
             };
             const SignOptions: SignOptions={   
                 expiresIn: JWT_EXPIRATION_SECONDS 
