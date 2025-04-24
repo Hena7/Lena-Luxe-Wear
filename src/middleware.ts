@@ -1,218 +1,137 @@
-// middleware.ts
+// middleware.ts (in project root or src/)
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { JWTPayload, jwtVerify } from 'jose';
-import type { Role } from '@prisma/client'; // Import Role enum type if needed for comparison
+import { jwtVerify } from 'jose';
+import type { Role } from '@prisma/client'; // Make sure Role is imported or defined
+import type { JWTPayload } from 'jose'; // Import base type
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const secretKey = new TextEncoder().encode(JWT_SECRET);
 
-// Define protected paths (can differentiate general vs admin)
-const protectedPaths = ['/profile', '/orders']; // Needs login
-const adminOnlyPaths = ['/admin', '/admin/users'];             // Needs login AND admin role
-
+// Define paths
+const protectedPaths = ['/profile', '/orders'];
+const adminOnlyPaths = ['/admin']; // Let's simplify - check for prefix /admin
 const publicOnlyPaths = ['/login', '/register'];
 
-// Define type for expected JWT payload including role
-interface UserJwtPayload extends JWTPayload{
-  userId: string;
-  email: string;
-  role: Role  | string; // Use the imported Role enum or just 'string' if not importing
-  iat?: number; // Issued at (standard JWT claim)
-  exp?: number; // Expiration time (standard JWT claim)
+// Define expected payload structure, extending JWTPayload
+interface UserJwtPayload extends JWTPayload {
+  userId?: string;
+  email?: string;
+  role?: Role | string; // Allow string for initial check
 }
 
 export async function middleware(request: NextRequest) {
-    console.log(`Middleware running for path: ${request.nextUrl.pathname}`);
+    const { pathname } = request.nextUrl;
+    console.log(`MIDDLEWARE: Running for path: ${pathname}`); // Log the actual path it's running for
 
-    if (!JWT_SECRET || secretKey.length === 0) {
-        // ... (handle missing secret as before) ...
-        return NextResponse.next(); // Allow in dev, block/redirect in prod
+    // --- Pre-computation: Basic Checks & Token Retrieval ---
+    let secretKey: Uint8Array | undefined = undefined;
+    if (JWT_SECRET) {
+        try {
+             secretKey = new TextEncoder().encode(JWT_SECRET);
+        } catch (e) { console.error("MIDDLEWARE: Failed to encode JWT_SECRET", e); }
+    }
+
+    if (!secretKey || secretKey.length === 0) {
+        console.error("MIDDLEWARE: JWT_SECRET is not configured correctly.");
+        // In production, block or redirect to error page
+        if (process.env.NODE_ENV === 'production') {
+             return new NextResponse("Internal Server Error: Configuration issue.", { status: 500 });
+        }
+        // Allow in dev with error logged
+        return NextResponse.next();
     }
 
     const token = request.cookies.get('sessionToken')?.value;
-    let userPayload: UserJwtPayload | null = null;
+    console.log(`MIDDLEWARE: Token found: ${!!token}`);
 
+    let userPayload: UserJwtPayload | null = null;
+    let isValidToken = false;
+
+    // --- Token Verification ---
     if (token) {
         try {
             const { payload } = await jwtVerify(token, secretKey);
-            console.log("Token verification successful, payload:", payload);
-             // Type assertion might be needed if Role enum isn't directly inferred
-             userPayload = payload as UserJwtPayload;
+            console.log("MIDDLEWARE: Raw token payload:", payload);
+
+            // Safer Payload Validation (Type Guard)
+            if (payload && typeof payload.userId === 'string' && typeof payload.role === 'string') {
+                 userPayload = { // Assign only if valid structure
+                    ...payload, // Keep standard claims like iat, exp
+                    userId: payload.userId,
+                    email: payload.email as string | undefined, // Handle potentially missing email
+                    role: payload.role as Role | string,
+                 };
+                 isValidToken = true; // Mark token as valid
+                 console.log("MIDDLEWARE: Validated userPayload:", userPayload);
+            } else {
+                 console.warn("MIDDLEWARE: Token payload structure invalid.");
+            }
         } catch (error: any) {
-            console.warn("Token verification failed:", error.code || error.message);
-            userPayload = null;
+            console.warn("MIDDLEWARE: Token verification failed (invalid/expired):", error.code || error.message);
+            // isValidToken remains false, userPayload remains null
         }
     }
 
+    const isUserLoggedIn = isValidToken && !!userPayload;
+    const userRole = userPayload?.role;
+    const isUserAdmin = isUserLoggedIn && userRole === 'ADMIN';
 
+    console.log(`MIDDLEWARE: User logged in: ${isUserLoggedIn}, Role: ${userRole}, Is Admin: ${isUserAdmin}`);
 
-
-    
-    const { pathname } = request.nextUrl;
-    const isUserLoggedIn = !!userPayload;
-    // Check if the logged-in user is an admin
-    const isUserAdmin = isUserLoggedIn && userPayload?.role === 'ADMIN'; // Check role
-
-    console.log(`User logged in: ${isUserLoggedIn}, Is Admin: ${isUserAdmin}`);
-    console.log(`Current path: ${pathname}`);
 
     // --- Routing Logic ---
 
-    // 1. Handle Admin-Only Paths
-    const isAccessingAdminPath = adminOnlyPaths.some(path => pathname.startsWith(path));
+    // 1. Check Admin Paths FIRST
+    const isAccessingAdminPath = pathname.startsWith('/admin'); // Simplified check for any /admin/* path
+    console.log(`MIDDLEWARE: Checking Admin Path (${pathname}): ${isAccessingAdminPath}`);
     if (isAccessingAdminPath) {
-         if (!isUserLoggedIn) {
-             console.log("Unauthorized access to ADMIN path (not logged in), redirecting to login.");
-             return NextResponse.redirect(new URL(`/login?redirectedFrom=${pathname}`, request.url));
-         }
-         if (!isUserAdmin) {
-              console.log("Forbidden access to ADMIN path (not admin role), redirecting to home (or show 403).");
-             // Option A: Redirect to homepage
-             return NextResponse.redirect(new URL('/', request.url));
-             // Option B: Show a simple forbidden message (or render a proper 403 page)
-             // return new NextResponse("Forbidden: Access Denied", { status: 403 });
-         }
-          // If logged in AND admin, allow access to admin paths
-         console.log("Admin access granted.");
-         return NextResponse.next();
-     }
+        if (!isUserLoggedIn) {
+            console.log("MIDDLEWARE: Redirecting to login (Admin Path, Not Logged In).");
+            return NextResponse.redirect(new URL(`/login?redirectedFrom=${pathname}`, request.url));
+        }
+        if (!isUserAdmin) {
+            console.log(`MIDDLEWARE: Redirecting to home (Admin Path, Role is ${userRole}, Not Admin).`);
+            return NextResponse.redirect(new URL('/', request.url)); // Redirect non-admins home
+        }
+        // If we reach here, user is logged in AND is Admin
+        console.log("MIDDLEWARE: Admin access granted. Allowing request.");
+        return NextResponse.next(); // Allow access to the requested admin path
+    }
 
-    // 2. Handle General Protected Paths
+    // 2. Check General Protected Paths (if not an admin path)
     const isAccessingProtectedPath = protectedPaths.some(path => pathname.startsWith(path));
+    console.log(`MIDDLEWARE: Checking Protected Path (${pathname}): ${isAccessingProtectedPath}`);
     if (isAccessingProtectedPath && !isUserLoggedIn) {
-        console.log("Unauthorized access to protected path, redirecting to login.");
+        console.log("MIDDLEWARE: Redirecting to login (Protected Path, Not Logged In).");
         return NextResponse.redirect(new URL(`/login?redirectedFrom=${pathname}`, request.url));
     }
 
-    // 3. Handle Public-Only Paths
+    // 3. Check Public-Only Paths (if not admin or protected path)
     const isAccessingPublicOnlyPath = publicOnlyPaths.some(path => pathname.startsWith(path));
+    console.log(`MIDDLEWARE: Checking Public-Only Path (${pathname}): ${isAccessingPublicOnlyPath}`);
     if (isAccessingPublicOnlyPath && isUserLoggedIn) {
-        console.log("Logged-in user accessing public-only path, redirecting to homepage.");
+        console.log("MIDDLEWARE: Redirecting to home (Public-Only Path, Logged In).");
         return NextResponse.redirect(new URL('/', request.url));
     }
 
-    // 4. Allow access to all other paths
-    console.log("Allowing request to proceed.");
+    // 4. Allow all other requests
+    console.log(`MIDDLEWARE: Allowing request to proceed (Path: ${pathname}).`);
     return NextResponse.next();
 }
 
 // --- Matcher ---
-// Update matcher if needed to include /admin paths for checking
+// Ensure this matcher includes the paths you want the middleware to check
 export const config = {
     matcher: [
-        //'/((?!api|_next/static|_next/image|favicon.ico|lena.png).*)', // General matcher
-         // Or be more explicit:
-         '/profile/:path*',
-         '/orders/:path*',
-         '/admin/:path*', // <<< Make sure admin paths are intercepted
-         '/login',
-         '/register',
+        // Apply to specific routes needing checks
+        '/profile/:path*',
+        '/orders/:path*',
+        '/admin/:path*',    // <<< Crucial: Intercept all /admin routes
+        '/login',
+        '/register',
+        '/cart',           // Example: Might want to protect cart too
+        // Add other specific pages if needed
+        // Avoid overly broad matchers like '/' if possible unless homepage needs checks
     ],
 };
-
-// export async function middleware(request: NextRequest) {
-//     console.log(`Middleware running for path: ${request.nextUrl.pathname}`); // Log path
-//     // 1. Check if JWT_SECRET is configured
-//     if (!JWT_SECRET || secretKey.length === 0) {
-//         console.error("JWT_SECRET is not configured correctly in middleware.");
-//         // Avoid leaking internal errors, redirect or show generic error page
-//         // For simplicity, let's allow access but log error during dev
-//         // In production, you might redirect to an error page or block access.
-//          if (process.env.NODE_ENV === 'production') {
-//             // Maybe return new Response("Internal Server Error", { status: 500 });
-//             // Or redirect to a dedicated error page
-//          }
-//          // Allow request to proceed in dev if secret is missing, but warn loudly
-//         return NextResponse.next();
-//     }
-
-//     // 2. Get the token from the cookie
-//     const token = request.cookies.get('sessionToken')?.value;
-//     console.log("Token from cookie:", token ? "found" : "not found"); // Log token presence
-
-//     let userPayload: { userId?: string; [key: string]: any } | null = null;
-
-//     // 3. Verify the token if it exists
-//     if (token) {
-//         try {
-//             // Verify using 'jose' library suitable for Edge runtime
-//             const { payload } = await jwtVerify(token, secretKey, {
-//                 // Specify expected algorithms if necessary (HS256 is default for sign)
-//                 // algorithms: ['HS256'],
-//             });
-//             console.log("Token verification successful, payload:", payload);
-//             userPayload = payload as { userId?: string; [key: string]: any };
-//         } catch (error: any) {
-//             console.warn("Token verification failed:", error.code || error.message); // Log verification errors (e.g., expired)
-//             // Invalid token - treat as logged out
-//         }
-//     }
-    
-//     userPayload = null;
-//     const { pathname } = request.nextUrl;
-//     const isUserLoggedIn = !!userPayload; // True if verification succeeded
-
-//     console.log("User logged in:", isUserLoggedIn);
-//     console.log("Current path:", pathname);
-
-
-//     // 4. Handle protected paths
-//     const isAccessingProtectedPath = protectedPaths.some(path => pathname.startsWith(path));
-//     if (isAccessingProtectedPath && !isUserLoggedIn) {
-//         console.log("Unauthorized access to protected path, redirecting to login.");
-//         // Redirect to login, preserving the originally requested URL for redirect after login
-//         const url = request.nextUrl.clone();
-//         url.pathname = '/login';
-//         url.searchParams.set('redirectedFrom', pathname); // Optional: tell login where user came from
-//         return NextResponse.redirect(url);
-//     }
-
-//     // 5. Handle public-only paths (login/register)
-//     const isAccessingPublicOnlyPath = publicOnlyPaths.some(path => pathname.startsWith(path));
-//     if (isAccessingPublicOnlyPath && isUserLoggedIn) {
-//         console.log("Logged-in user accessing public-only path, redirecting to homepage.");
-//         // Redirect logged-in users away from login/register to the homepage
-//         const url = request.nextUrl.clone();
-//         url.pathname = '/';
-//         return NextResponse.redirect(url);
-//     }
-
-//     // 6. If none of the above, allow the request to proceed
-//     console.log("Allowing request to proceed.");
-//     // You could potentially add the user payload to request headers here
-//     // if needed by Server Components (requires cloning headers)
-//     // const requestHeaders = new Headers(request.headers);
-//     // if (userPayload) {
-//     //    requestHeaders.set('x-user-payload', JSON.stringify(userPayload));
-//     // }
-//     // return NextResponse.next({ request: { headers: requestHeaders } });
-
-//     return NextResponse.next(); // Continue to the requested page/route
-// }
-
-// // Specify which paths the middleware should run on using the matcher
-// export const config = {
-//     matcher: [
-//         /*
-//          * Match all request paths except for the ones starting with:
-//          * - api (API routes - we might protect these individually later if needed)
-//          * - _next/static (static files)
-//          * - _next/image (image optimization files)
-//          * - favicon.ico (favicon file)
-//          * - / (Homepage - adjust if homepage needs protection)
-//          * - /shop (Shop page - adjust if shop needs protection)
-//          * - /product/:path* (Product detail pages - adjust if needed)
-//          * - lena.png (assume it's the public logo)
-//          */
-//          // Apply middleware to MOST paths, then use logic inside to differentiate
-//         '/((?!api|_next/static|_next/image|favicon.ico|lena.png).*)',
-//          // Or, be more specific about which paths to include:
-//          // '/profile/:path*',
-//          // '/orders/:path*',
-//          // '/admin/:path*',
-//          // '/login',
-//          // '/register',
-//          // Add other paths you want the middleware to intercept
-//     ],
-// };

@@ -34,10 +34,13 @@ export default function AdminUsersPage() {
              return;
         }
 
-        if (!isAuthLoading && currentUser && currentUser.role !== 'ADMIN') {
-            console.error(`!!! REDIRECTING ADMIN: AuthLoading=${isAuthLoading}, User=${JSON.stringify(currentUser)}`); // <<< ADD THIS LOG
-            router.replace('/');
-            return;
+        if (!isAuthLoading && currentUser) { // Check user exists first
+            console.log(`ADMIN USERS PAGE EFFECT: Checking role: ${currentUser.role}`); // <<< ADD THIS
+            if (currentUser.role !== 'ADMIN') {
+               console.error(`!!! REDIRECTING ADMIN?: AuthLoading=${isAuthLoading}, User Role=${currentUser?.role}`);
+               router.replace('/');
+               return;
+            }
         }
         // Fetch users if authenticated and is admin
         if (currentUser && currentUser.role === 'ADMIN') {
