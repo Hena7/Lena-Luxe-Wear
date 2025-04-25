@@ -121,3 +121,51 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 // --- TODO: Add DELETE Handler ---
 // export async function DELETE(request: NextRequest, context: RouteContext) { ... }
+// --- DELETE Handler: Delete Existing Product (ADMIN ONLY) ---
+export async function DELETE(request: NextRequest, context: RouteContext) {
+    const productId = context.params.productId;
+    console.log(`API: Received request to DELETE product ${productId} (Admin)`);
+
+    // 1. Verify Admin Authentication (Essential)
+    if (!JWT_SECRET || secretKey.length === 0) { /* ... handle missing secret ... */ }
+    const token = request.cookies.get('sessionToken')?.value;
+    if (!token) { return NextResponse.json({ message: "Unauthorized: Login required." }, { status: 401 }); }
+
+    try {
+        const { payload } = await jwtVerify(token, secretKey);
+        if (!payload || typeof payload.userId !== 'string' || payload.role !== 'ADMIN') {
+            return NextResponse.json({ message: "Forbidden: Admin access required." }, { status: 403 });
+        }
+         console.log(`API: Admin user ${payload.email} authenticated to DELETE product ${productId}.`);
+    } catch (error) {
+         return NextResponse.json({ message: "Unauthorized: Invalid session." }, { status: 401 });
+    }
+
+    // 2. Delete Product from Database
+    try {
+        // Use delete - this will throw an error if the record doesn't exist (P2025)
+        const deletedProduct = await prisma.product.delete({
+            where: { id: productId },
+        });
+
+        console.log(`API: Successfully deleted product ${productId} (Name: ${deletedProduct.name})`);
+        // 3. Return Success Response (usually no content or just a confirmation)
+        // return new NextResponse(null, { status: 204 }); // 204 No Content is common for DELETE
+         return NextResponse.json({ message: `Product "${deletedProduct.name}" deleted successfully.` }, { status: 200 }); // Or 200 OK with message
+
+    } catch (error: any) {
+         console.error(`API: Failed to delete product ${productId}:`, error);
+         // Handle specific Prisma errors, e.g., P2025 (Record to delete not found)
+         if (error.code === 'P2025') {
+             return NextResponse.json({ message: `Product with ID ${productId} not found.` }, { status: 404 });
+         }
+         // Handle other potential errors (like foreign key constraints if product is in an order - needs careful schema design or cleanup logic)
+          // if (error.code === 'P2003') { // Foreign key constraint failed
+          //    return NextResponse.json({ message: "Cannot delete product because it is part of existing orders."}, { status: 409 }); // Conflict
+          // }
+         return NextResponse.json(
+             { message: "An error occurred while deleting the product.", error: error.message },
+             { status: 500 }
+         );
+    }
+}

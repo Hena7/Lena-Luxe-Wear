@@ -2,27 +2,29 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';      // Adjust path if needed
+import { useLanguage } from '@/contexts/LanguageContext'; // Adjust path if needed
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation'; // Use useParams to get ID easily in client component
+import { useRouter, useParams } from 'next/navigation';
 import type { Category, Product } from '@prisma/client';
+import { ArrowPathIcon } from '@heroicons/react/24/solid'; // Loading spinner icon
 
-// Type for category options
+// Type for category options fetched for the dropdown
 type CategoryOption = Pick<Category, 'id' | 'name'>;
-// Type for product data including category (from GET /api/products/:id)
+
+// Type for product data fetched for editing (ensure API returns this shape)
 interface ProductEditData extends Product {
-    category: CategoryOption | null; // Ensure API returns category with product
+    category: CategoryOption | null;
 }
 
 export default function AdminEditProductPage() {
     const { currentUser, isLoading: isAuthLoading } = useAuth();
-    const { locale } = useLanguage();
+    const { locale } = useLanguage(); // For potential translations later
     const router = useRouter();
-    const params = useParams(); // Hook to get route parameters
-    const productId = params.productId as string; // Get productId from params
+    const params = useParams(); // Hook to get route parameters ({ productId: '...' })
+    const productId = params.productId as string; // Get productId safely
 
-    // State for form fields - initialize empty
+    // --- Form State ---
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [price, setPrice] = useState('');
@@ -31,98 +33,112 @@ export default function AdminEditProductPage() {
     const [categoryId, setCategoryId] = useState('');
     const [categories, setCategories] = useState<CategoryOption[]>([]);
 
-    // State for UI feedback
-    const [isLoadingData, setIsLoadingData] = useState(true); // Loading product/category data
-    const [isSubmitting, setIsSubmitting] = useState(false); // Submitting update
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<string | null>(null);
+    // --- UI/Loading State ---
+    const [isLoadingData, setIsLoadingData] = useState(true); // Loading initial product/category data
+    const [isSubmitting, setIsSubmitting] = useState(false); // Submitting the update API call
+    const [error, setError] = useState<string | null>(null);   // Stores error messages
+    const [success, setSuccess] = useState<string | null>(null); // Stores success messages
 
-    // Redirect non-admins
+    // --- Redirect non-admins ---
     useEffect(() => {
+        // Wait for auth check to complete before deciding
         if (!isAuthLoading && (!currentUser || currentUser.role !== 'ADMIN')) {
-            router.replace('/');
+            console.warn("Non-admin redirect triggered from edit product page.");
+            router.replace('/'); // Redirect non-admins to homepage
         }
     }, [currentUser, isAuthLoading, router]);
 
-    // Fetch initial data (categories and existing product)
+    // --- Fetch initial data (categories and existing product) ---
     const fetchData = useCallback(async () => {
-        if (!productId || (currentUser && currentUser.role !== 'ADMIN')) return; // Ensure ID exists and user is admin
+        // Guard clauses
+        if (!productId) {
+            setError("Product ID is missing.");
+            setIsLoadingData(false);
+            return;
+        }
+         // We check currentUser again here, though the effect dependency handles it too
+        if (!currentUser || currentUser.role !== 'ADMIN') {
+             // Should have been redirected, but stop fetch just in case
+             setIsLoadingData(false);
+             return;
+         }
 
-        console.log(`Fetching data for product edit: ${productId}`);
+        console.log(`ADMIN EDIT: Fetching initial data for product ID: ${productId}`);
         setIsLoadingData(true);
         setError(null);
-        setSuccess(null); // Clear previous success message
+        setSuccess(null);
 
         try {
-            // Fetch categories and product data in parallel
             const [catResponse, prodResponse] = await Promise.all([
                 fetch('/api/categories'),
-                fetch(`/api/products/${productId}`) // Use public product fetch API
+                fetch(`/api/products/${productId}`) // Use public API to get product details
             ]);
 
-            // Handle Category Fetch Response
-            if (!catResponse.ok) throw new Error('Failed to fetch categories');
+            // Handle Categories
+            if (!catResponse.ok) throw new Error('Failed to load categories.');
             const catData: CategoryOption[] = await catResponse.json();
             setCategories(catData);
-            console.log("Categories fetched for edit form:", catData);
 
-             // Handle Product Fetch Response
-             if (!prodResponse.ok) {
-                 if (prodResponse.status === 404) throw new Error(`Product with ID ${productId} not found.`);
-                 throw new Error(`Failed to fetch product data: Status ${prodResponse.status}`);
-             }
-             const prodData: ProductEditData = await prodResponse.json();
-             console.log("Product data fetched for edit form:", prodData);
+            // Handle Product
+            if (!prodResponse.ok) {
+                const errData = await prodResponse.json().catch(() => ({}));
+                if (prodResponse.status === 404) throw new Error(`Product not found (ID: ${productId}).`);
+                throw new Error(errData.message || `Failed to load product data: Status ${prodResponse.status}`);
+            }
+            const prodData: ProductEditData = await prodResponse.json();
 
-             // --- Pre-fill form state ---
-             setName(prodData.name);
-             setDescription(prodData.description || '');
-             setPrice(prodData.price.toString()); // Convert number to string for input
-             setStock(prodData.stock.toString()); // Convert number to string for input
-             setImageUrl(prodData.imageUrl || '');
-             setCategoryId(prodData.categoryId || (catData.length > 0 ? catData[0].id : '')); // Set category or default
-             // ---------------------------
+            // Pre-fill form state
+            setName(prodData.name);
+            setDescription(prodData.description || '');
+            setPrice(prodData.price.toString());
+            setStock(prodData.stock.toString());
+            setImageUrl(prodData.imageUrl || '');
+            // Ensure categoryId is set correctly, default if needed and categories exist
+            setCategoryId(prodData.categoryId || (catData.length > 0 ? catData[0].id : ''));
+
+            console.log("ADMIN EDIT: Data fetched and form pre-filled.");
 
         } catch (err: any) {
-            console.error("Failed to load data for editing:", err);
-            setError(err.message || 'Could not load product data.');
-            // Optionally redirect if product not found?
-             // if (err.message.includes("not found")) { router.push('/admin/products'); }
+            console.error("ADMIN EDIT: Failed to load data:", err);
+            setError(err.message || 'Could not load product data for editing.');
         } finally {
             setIsLoadingData(false);
         }
-    // Only depend on productId and admin status for initial fetch trigger
-    }, [productId, currentUser, isAuthLoading]); // Re-fetch if productId changes or auth resolves
+    }, [productId, currentUser]); // Depend on productId and currentUser
 
-    // Call fetchData on mount or when dependencies change
+    // Trigger initial data fetch
     useEffect(() => {
-       if (currentUser && currentUser.role === 'ADMIN' && productId) {
+        // Only fetch if we have the ID and the user context is loaded and is an admin
+       if (productId && !isAuthLoading && currentUser && currentUser.role === 'ADMIN') {
          fetchData();
        }
-    }, [fetchData, currentUser, productId]); // Include fetchData in dependencies
+    }, [productId, isAuthLoading, currentUser, fetchData]);
 
 
-    // Form submission handler
+    // --- Form Submission Handler ---
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitting(true);
         setError(null);
         setSuccess(null);
 
-        // Validate numeric inputs
-         const priceNum = parseFloat(price);
-         const stockNum = parseInt(stock, 10);
-         if (isNaN(priceNum) || priceNum < 0) { /* ... set error, return ... */ setError('Invalid price'); setIsSubmitting(false); return; }
-         if (isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) { /* ... set error, return ... */ setError('Invalid stock'); setIsSubmitting(false); return; }
-         if (!categoryId) { /* ... set error, return ... */ setError('Category required'); setIsSubmitting(false); return; }
+        // --- Input Validation ---
+        const priceNum = parseFloat(price);
+        const stockNum = parseInt(stock, 10);
 
+        if (!name.trim()) {setError('Product name is required.'); setIsSubmitting(false); return;}
+        if (isNaN(priceNum) || priceNum < 0) { setError('Please enter a valid non-negative price.'); setIsSubmitting(false); return; }
+        if (isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) { setError('Please enter a valid non-negative whole number for stock.'); setIsSubmitting(false); return; }
+        if (!categoryId) { setError('Please select a category.'); setIsSubmitting(false); return; }
+        // Add other specific validations if needed (e.g., URL format)
+        // --- End Validation ---
 
         try {
-             // PUT request to the specific product's admin endpoint
-            const response = await fetch(`/api/admin/products/${productId}`, {
-                method: 'PUT', // Use PUT for updates
+            console.log(`ADMIN EDIT: Submitting update for product ID: ${productId}`);
+            const response = await fetch(`/api/admin/products/${productId}`, { // Target specific product admin API
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ // Send only fields that can be updated
+                body: JSON.stringify({ // Send validated and formatted data
                     name: name.trim(),
                     description: description.trim() || null,
                     price: priceNum,
@@ -139,100 +155,207 @@ export default function AdminEditProductPage() {
             }
 
             // Success
-            setSuccess(`Product "${result.name}" updated successfully!`);
-            // Optionally redirect back to list after delay
+            console.log("ADMIN EDIT: Product update successful:", result);
+            setSuccess(`Product "${result.name}" updated successfully! Redirecting...`);
+            // Redirect back to the product list after a short delay
             setTimeout(() => router.push('/admin/products'), 1500);
 
         } catch (err: any) {
-            console.error("Failed to update product:", err);
-            setError(err.message || 'An unexpected error occurred.');
+            console.error("ADMIN EDIT: Failed to update product:", err);
+            setError(err.message || 'An unexpected error occurred during update.');
         } finally {
-            setIsSubmitting(false);
+            setIsSubmitting(false); // Always stop submitting indicator
         }
     };
 
+    // --- Render Logic ---
 
-     // --- Render Logic ---
-     const isLoadingPage = isAuthLoading || isLoadingData; // Loading if auth or data fetch is happening
+    // Display loading indicator while auth or initial data is loading
+    const isLoadingPage = isAuthLoading || isLoadingData;
+    if (isLoadingPage) {
+         return (
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center flex flex-col items-center justify-center min-h-[300px]">
+                 <ArrowPathIcon className="h-8 w-8 animate-spin mb-4 text-gray-500 dark:text-gray-400" />
+                 <p className="text-gray-500 dark:text-gray-400">Loading product data...</p>
+             </div>
+        );
+    }
 
-     if (isLoadingPage) { return <div className="container mx-auto p-6 text-center">Loading product data...</div>; }
-     if (error && !name) { // Show major error if product data failed to load initially
-         return <div className="container mx-auto p-6 text-center text-red-600">Error loading product: {error}</div>;
-     }
-     if (!currentUser || currentUser.role !== 'ADMIN') { return <div className="container mx-auto p-6 text-center text-red-600">Access Denied.</div>; }
+    // Display error if initial data loading failed
+    // We check !name as an indicator that product data likely failed to load
+    if (error && !name) {
+        return (
+             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+                 <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-4 border border-red-300 dark:border-red-600 max-w-lg mx-auto">
+                     <p className="text-sm font-medium text-red-700 dark:text-red-200">{error}</p>
+                 </div>
+                 <div className="mt-6">
+                      <Link href="/admin/products" className="text-sm font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300">
+                         ← Back to Products List
+                     </Link>
+                 </div>
+             </div>
+         );
+    }
 
-    // Render the form (very similar to create form, but with pre-filled values)
+    // Final auth check - should normally be handled by redirect effect, but good failsafe
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+        return <div className="container mx-auto p-6 text-center text-red-600">Access Denied. You do not have permission to view this page.</div>;
+    }
+
+
+    // --- Render the Edit Form ---
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-3xl">
+            {/* Back Link */}
             <div className="mb-6">
-                <Link href="/admin/products" className="..."> {/* Back link style */}
+                <Link href="/admin/products" className="text-sm font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-purple-500 rounded">
                     ← Back to Products List
                 </Link>
              </div>
-            <h1 className="text-2xl font-semibold leading-tight text-gray-900 dark:text-white mb-6">
-                 Edit Product <span className="text-base font-normal text-gray-500 ml-2">(ID: {productId})</span>
-             </h1>
 
-             {/* Use the same form structure as create, but values are bound to state */}
-             <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+            {/* Title */}
+            <h1 className="text-2xl font-semibold leading-tight text-gray-900 dark:text-white mb-1">
+                Edit Product
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                 Update details for product ID: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{productId}</span>
+            </p>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                 {/* Display Submission Error/Success Messages */}
-                 {error && <div className="rounded-md bg-red-50 ..."><p className="text-sm ...">{error}</p></div>}
-                 {success && <div className="rounded-md bg-green-50 ..."><p className="text-sm ...">{success}</p></div>}
+                 {error && !success && ( // Show error only if no success message
+                    <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-3 border border-red-300 dark:border-red-600">
+                        <p className="text-sm font-medium text-red-700 dark:text-red-200">{error}</p>
+                    </div>
+                 )}
+                 {success && (
+                    <div className="rounded-md bg-green-50 dark:bg-green-900/30 p-3 border border-green-300 dark:border-green-600">
+                        <p className="text-sm font-medium text-green-700 dark:text-green-200">{success}</p>
+                    </div>
+                 )}
 
-                 {/* Name */}
+                {/* Name Input */}
                 <div>
-                     <label htmlFor="name" className="block text-sm font-medium ...">Product Name <span className="text-red-500">*</span></label>
-                     <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required className="block w-full px-3 py-2 ..." />
+                    <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300 mb-1">Product Name <span className="text-red-500">*</span></label>
+                    <input
+                        type="text"
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                    />
                 </div>
 
-                 {/* Description */}
-                 <div>
-                     <label htmlFor="description" className="block text-sm font-medium ...">Description</label>
-                     <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="block w-full px-3 py-2 ..." />
-                 </div>
+                {/* Description Textarea */}
+                <div>
+                    <label htmlFor="description" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300 mb-1">Description</label>
+                    <textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        rows={4}
+                        className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                    />
+                </div>
 
-                  {/* Price & Stock (inline) */}
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                 {/* Price & Stock Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                      <div>
-                         <label htmlFor="price" className="block text-sm font-medium ...">Price <span className="text-red-500">*</span></label>
-                         <div className="relative ...">
-                             {/* ... price input with value={price} ... */}
-                             <input type="number" id="price" value={price} onChange={(e) => setPrice(e.target.value)} required min="0" step="0.01" className="..." placeholder="0.00" />
+                         <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300 mb-1">Price <span className="text-red-500">*</span></label>
+                         <div className="relative rounded-md shadow-sm">
+                             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                 <span className="text-gray-500 dark:text-gray-400 sm:text-sm">$</span> {/* Adjust currency symbol */}
+                             </div>
+                             <input
+                                 type="number"
+                                 id="price"
+                                 value={price}
+                                 onChange={(e) => setPrice(e.target.value)}
+                                 required
+                                 min="0"
+                                 step="0.01"
+                                 className="block w-full rounded-md border-0 py-1.5 pl-7 pr-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                                 placeholder="0.00"
+                             />
                          </div>
                      </div>
                      <div>
-                          <label htmlFor="stock" className="block text-sm font-medium ...">Stock Quantity <span className="text-red-500">*</span></label>
-                          <input type="number" id="stock" value={stock} onChange={(e) => setStock(e.target.value)} required min="0" step="1" className="..." placeholder="0" />
+                          <label htmlFor="stock" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300 mb-1">Stock Quantity <span className="text-red-500">*</span></label>
+                         <input
+                             type="number"
+                             id="stock"
+                             value={stock}
+                             onChange={(e) => setStock(e.target.value)}
+                             required
+                             min="0"
+                             step="1"
+                             className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                             placeholder="0"
+                         />
                      </div>
-                  </div>
+                 </div>
 
-                 {/* Image URL */}
+
+                {/* Image URL Input */}
                 <div>
-                     <label htmlFor="imageUrl" className="block text-sm font-medium ...">Image URL</label>
-                     <input type="url" id="imageUrl" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="..." placeholder="https://example.com/image.png" />
+                    <label htmlFor="imageUrl" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300 mb-1">Image URL</label>
+                    <input
+                        type="url"
+                        id="imageUrl"
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                        className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                        placeholder="https://images.unsplash.com/..."
+                    />
                 </div>
 
-                 {/* Category Select */}
+                {/* Category Select Dropdown */}
                 <div>
-                     <label htmlFor="category" className="block text-sm font-medium ...">Category <span className="text-red-500">*</span></label>
-                     <select id="category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required disabled={isLoadingData || categories.length === 0} className="...">
-                         {categories.length === 0 && !isLoadingData ? (
-                             <option>No categories loaded</option>
+                    <label htmlFor="category" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300 mb-1">Category <span className="text-red-500">*</span></label>
+                    <select
+                        id="category"
+                        value={categoryId}
+                        onChange={(e) => setCategoryId(e.target.value)}
+                        required
+                        disabled={isLoadingData || categories.length === 0} // Disable while loading categories
+                        className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6 disabled:opacity-50 disabled:cursor-not-allowed dark:disabled:bg-gray-700"
+                    >
+                         {categories.length === 0 && isLoadingData ? (
+                             <option>Loading categories...</option>
+                         ) : categories.length === 0 ? (
+                             <option>No categories found</option>
                          ) : (
                              categories.map(cat => (
                                  <option key={cat.id} value={cat.id}>{cat.name}</option>
                              ))
                          )}
-                      </select>
-                 </div>
+                     </select>
+                </div>
 
-                 {/* Submit Button */}
-                 <div className="pt-4">
-                     <button type="submit" disabled={isSubmitting || isLoadingData} className="w-full flex justify-center py-2 px-4 ... disabled:opacity-50">
-                        {isSubmitting ? 'Updating...' : 'Update Product'}
-                     </button>
-                 </div>
-             </form>
-         </div>
-     );
+                {/* Submit Button Area */}
+                <div className="pt-4 flex justify-end">
+                    <Link href="/admin/products" className="rounded-md bg-white dark:bg-gray-700 py-2 px-3 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 mr-3">
+                         Cancel
+                    </Link>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting || isLoadingData}
+                        // disabled={isSubmitting || isLoadingData || success} // Disable if submitting, loading data, or after success
+                        className="inline-flex justify-center rounded-md bg-indigo-600 py-2 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <ArrowPathIcon className="animate-spin h-5 w-5 mr-2" /> Updating...
+                             </>
+                         ) : (
+                            'Update Product'
+                         )}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
 }
