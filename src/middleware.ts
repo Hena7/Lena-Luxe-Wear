@@ -128,6 +128,7 @@ export const config = {
         '/profile/:path*',
         '/orders/:path*',
         '/admin/:path*',    // <<< Crucial: Intercept all /admin routes
+        '/admin/orders/:path*',
         '/login',
         '/register',
         '/cart',           // Example: Might want to protect cart too

@@ -19,71 +19,68 @@ interface CreateOrderRequestBody {
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const secretKey = new TextEncoder().encode(JWT_SECRET);
-// --- GET Handler: Fetch Orders for Logged-in User ---
-export async function GET(request: NextRequest) {
-    console.log("Received request to fetch user orders");
 
-    // 1. Verify User Authentication
-    if (!JWT_SECRET || secretKey.length === 0) {
-        return NextResponse.json({ message: "Server configuration error." }, { status: 500 });
-    }
+// --- GET Handler: Fetch Orders for Logged-in User ---
+// --- GET Handler: Fetch Orders for Logged-in User (CUSTOMER or ADMIN) ---
+export async function GET(request: NextRequest) {
+    console.log("API: Received request to fetch CURRENT USER orders");
+
+    // 1. Verify User Authentication (No Admin check needed here)
+    if (!JWT_SECRET || secretKey.length === 0) { /* ... */ }
     const token = request.cookies.get('sessionToken')?.value;
     if (!token) {
-        return NextResponse.json({ message: "Unauthorized: Must be logged in to view orders." }, { status: 401 });
+        // Return 401 if no token
+        return NextResponse.json({ message: "Unauthorized: Login required to view orders." }, { status: 401 });
     }
 
     let userId: string | undefined;
     try {
         const { payload } = await jwtVerify(token, secretKey);
         userId = payload.userId as string | undefined;
-        if (!userId) throw new Error("Invalid token payload: userId missing.");
-        console.log(`Fetching orders for user ID: ${userId}`);
+        if (!userId) throw new Error("Invalid token payload: userId missing."); // Ensure userId exists
+        console.log(`API: Fetching orders for user ID: ${userId}`);
     } catch (error) {
-        console.error("Auth verification failed for fetching orders:", error);
-        return NextResponse.json({ message: "Unauthorized: Invalid session." }, { status: 401 });
+        console.error("Auth verification failed for fetching user orders:", error);
+         // Return 401 if token is invalid/expired
+         return NextResponse.json({ message: "Unauthorized: Invalid session." }, { status: 401 });
     }
 
-    // 2. Fetch Orders from Database
+    // --- User is Authenticated - Proceed to Fetch THEIR Orders ---
+
+    // 2. Fetch Orders from Database for this specific user
     try {
         const orders = await prisma.order.findMany({
             where: {
-                userId: userId, // Filter orders by the authenticated user's ID
+                userId: userId, // <<< CRUCIAL: Filter orders by the authenticated user's ID
             },
             include: {
-                // Include related OrderItems
+                // Include needed related data for display
                 items: {
                     include: {
-                        // Include related Product details within each item
                         product: {
-                            select: { // Select only needed product fields
-                                id: true,
-                                name: true,
-                                imageUrl: true,
-                            }
+                            select: { id: true, name: true, imageUrl: true }
                         }
                     }
                 }
-                // We don't need to include the user again here, as we filter by userId
-                // user: { select: { email: true, name: true }} // (Optional if needed)
+                // No need to include 'user' as we are already filtering by userId
             },
             orderBy: {
                 createdAt: 'desc', // Show most recent orders first
             }
         });
 
-        console.log(`Found ${orders.length} orders for user ${userId}`);
+        console.log(`API: Found ${orders.length} orders for user ${userId}`);
         // 3. Return the fetched orders
         return NextResponse.json(orders, { status: 200 });
 
     } catch (error: any) {
-        console.error(`Failed to fetch orders for user ${userId}:`, error);
+        console.error(`API: Failed to fetch orders for user ${userId}:`, error);
         return NextResponse.json(
-            { message: "An error occurred while fetching orders.", error: error.message },
+            { message: "An error occurred while fetching your orders.", error: error.message },
             { status: 500 }
         );
     }
-}
-
+} // End GET Handler
 
 // Handle POST requests to create a new order
 export async function POST(request: NextRequest) {
