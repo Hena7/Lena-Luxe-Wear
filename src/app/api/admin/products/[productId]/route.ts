@@ -23,11 +23,15 @@ interface UpdateProductRequestBody {
 
 
 // Interface for route context (including params)
-interface RouteContext { params: { productId: string } }
+//interface RouteContext { params: { productId: string } }
 
 // --- PUT Handler: Update Existing Product (ADMIN ONLY) ---
-export async function PUT(request: NextRequest, context: RouteContext) {
-    const productId = context.params.productId;
+export async function PUT(
+    request: NextRequest,
+    context: any // <<< Use 'any' here
+) {
+    // Access params carefully with optional chaining and assertion
+    const productId = context?.params?.productId as string;
     console.log(`API: Received request to UPDATE product ${productId} (Admin)`);
 
     // 1. Verify Admin Authentication
@@ -122,8 +126,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 // --- TODO: Add DELETE Handler ---
 // export async function DELETE(request: NextRequest, context: RouteContext) { ... }
 // --- DELETE Handler: Delete Existing Product (ADMIN ONLY) ---
-export async function DELETE(request: NextRequest, context: RouteContext) {
-    const productId = context.params.productId;
+export async function DELETE(
+    request: NextRequest,
+    context: any // <<< Use 'any' here
+) {
+    // Access params carefully with optional chaining and assertion
+    const productId = context?.params?.productId as string;
     console.log(`API: Received request to DELETE product ${productId} (Admin)`);
 
     // 1. Verify Admin Authentication (Essential)
@@ -168,4 +176,4 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
              { status: 500 }
          );
     }
-}
+}   
