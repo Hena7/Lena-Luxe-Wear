@@ -17,12 +17,11 @@ interface ProductEditData extends Product {
     category: CategoryOption | null;
 }
 
-export default function AdminEditProductPage() {
+export default function AdminProductEditPage({ params }: any) {
     const { currentUser, isLoading: isAuthLoading } = useAuth();
     const { locale } = useLanguage(); // For potential translations later
     const router = useRouter();
-    const params = useParams(); // Hook to get route parameters ({ productId: '...' })
-    const productId = params.productId as string; // Get productId safely
+    const productId = params?.productId;
 
     // --- Form State ---
     const [name, setName] = useState('');
@@ -56,12 +55,12 @@ export default function AdminEditProductPage() {
             setIsLoadingData(false);
             return;
         }
-         // We check currentUser again here, though the effect dependency handles it too
+        // We check currentUser again here, though the effect dependency handles it too
         if (!currentUser || currentUser.role !== 'ADMIN') {
-             // Should have been redirected, but stop fetch just in case
-             setIsLoadingData(false);
-             return;
-         }
+            // Should have been redirected, but stop fetch just in case
+            setIsLoadingData(false);
+            return;
+        }
 
         console.log(`ADMIN EDIT: Fetching initial data for product ID: ${productId}`);
         setIsLoadingData(true);
@@ -109,9 +108,9 @@ export default function AdminEditProductPage() {
     // Trigger initial data fetch
     useEffect(() => {
         // Only fetch if we have the ID and the user context is loaded and is an admin
-       if (productId && !isAuthLoading && currentUser && currentUser.role === 'ADMIN') {
-         fetchData();
-       }
+        if (productId && !isAuthLoading && currentUser && currentUser.role === 'ADMIN') {
+            fetchData();
+        }
     }, [productId, isAuthLoading, currentUser, fetchData]);
 
 
@@ -126,7 +125,7 @@ export default function AdminEditProductPage() {
         const priceNum = parseFloat(price);
         const stockNum = parseInt(stock, 10);
 
-        if (!name.trim()) {setError('Product name is required.'); setIsSubmitting(false); return;}
+        if (!name.trim()) { setError('Product name is required.'); setIsSubmitting(false); return; }
         if (isNaN(priceNum) || priceNum < 0) { setError('Please enter a valid non-negative price.'); setIsSubmitting(false); return; }
         if (isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) { setError('Please enter a valid non-negative whole number for stock.'); setIsSubmitting(false); return; }
         if (!categoryId) { setError('Please select a category.'); setIsSubmitting(false); return; }
@@ -173,11 +172,11 @@ export default function AdminEditProductPage() {
     // Display loading indicator while auth or initial data is loading
     const isLoadingPage = isAuthLoading || isLoadingData;
     if (isLoadingPage) {
-         return (
+        return (
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center flex flex-col items-center justify-center min-h-[300px]">
-                 <ArrowPathIcon className="h-8 w-8 animate-spin mb-4 text-gray-500 dark:text-gray-400" />
-                 <p className="text-gray-500 dark:text-gray-400">Loading product data...</p>
-             </div>
+                <ArrowPathIcon className="h-8 w-8 animate-spin mb-4 text-gray-500 dark:text-gray-400" />
+                <p className="text-gray-500 dark:text-gray-400">Loading product data...</p>
+            </div>
         );
     }
 
@@ -185,17 +184,17 @@ export default function AdminEditProductPage() {
     // We check !name as an indicator that product data likely failed to load
     if (error && !name) {
         return (
-             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-                 <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-4 border border-red-300 dark:border-red-600 max-w-lg mx-auto">
-                     <p className="text-sm font-medium text-red-700 dark:text-red-200">{error}</p>
-                 </div>
-                 <div className="mt-6">
-                      <Link href="/admin/products" className="text-sm font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300">
-                         ← Back to Products List
-                     </Link>
-                 </div>
-             </div>
-         );
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+                <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-4 border border-red-300 dark:border-red-600 max-w-lg mx-auto">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-200">{error}</p>
+                </div>
+                <div className="mt-6">
+                    <Link href="/admin/products" className="text-sm font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300">
+                        ← Back to Products List
+                    </Link>
+                </div>
+            </div>
+        );
     }
 
     // Final auth check - should normally be handled by redirect effect, but good failsafe
@@ -212,29 +211,29 @@ export default function AdminEditProductPage() {
                 <Link href="/admin/products" className="text-sm font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-purple-500 rounded">
                     ← Back to Products List
                 </Link>
-             </div>
+            </div>
 
             {/* Title */}
             <h1 className="text-2xl font-semibold leading-tight text-gray-900 dark:text-white mb-1">
                 Edit Product
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                 Update details for product ID: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{productId}</span>
+                Update details for product ID: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{productId}</span>
             </p>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                 {/* Display Submission Error/Success Messages */}
-                 {error && !success && ( // Show error only if no success message
+                {error && !success && ( // Show error only if no success message
                     <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-3 border border-red-300 dark:border-red-600">
                         <p className="text-sm font-medium text-red-700 dark:text-red-200">{error}</p>
                     </div>
-                 )}
-                 {success && (
+                )}
+                {success && (
                     <div className="rounded-md bg-green-50 dark:bg-green-900/30 p-3 border border-green-300 dark:border-green-600">
                         <p className="text-sm font-medium text-green-700 dark:text-green-200">{success}</p>
                     </div>
-                 )}
+                )}
 
                 {/* Name Input */}
                 <div>
@@ -261,42 +260,42 @@ export default function AdminEditProductPage() {
                     />
                 </div>
 
-                 {/* Price & Stock Row */}
+                {/* Price & Stock Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-                     <div>
-                         <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300 mb-1">Price <span className="text-red-500">*</span></label>
-                         <div className="relative rounded-md shadow-sm">
-                             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                 <span className="text-gray-500 dark:text-gray-400 sm:text-sm">$</span> {/* Adjust currency symbol */}
-                             </div>
-                             <input
-                                 type="number"
-                                 id="price"
-                                 value={price}
-                                 onChange={(e) => setPrice(e.target.value)}
-                                 required
-                                 min="0"
-                                 step="0.01"
-                                 className="block w-full rounded-md border-0 py-1.5 pl-7 pr-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                                 placeholder="0.00"
-                             />
-                         </div>
-                     </div>
-                     <div>
-                          <label htmlFor="stock" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300 mb-1">Stock Quantity <span className="text-red-500">*</span></label>
-                         <input
-                             type="number"
-                             id="stock"
-                             value={stock}
-                             onChange={(e) => setStock(e.target.value)}
-                             required
-                             min="0"
-                             step="1"
-                             className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                             placeholder="0"
-                         />
-                     </div>
-                 </div>
+                    <div>
+                        <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300 mb-1">Price <span className="text-red-500">*</span></label>
+                        <div className="relative rounded-md shadow-sm">
+                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <span className="text-gray-500 dark:text-gray-400 sm:text-sm">$</span> {/* Adjust currency symbol */}
+                            </div>
+                            <input
+                                type="number"
+                                id="price"
+                                value={price}
+                                onChange={(e) => setPrice(e.target.value)}
+                                required
+                                min="0"
+                                step="0.01"
+                                className="block w-full rounded-md border-0 py-1.5 pl-7 pr-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                                placeholder="0.00"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label htmlFor="stock" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300 mb-1">Stock Quantity <span className="text-red-500">*</span></label>
+                        <input
+                            type="number"
+                            id="stock"
+                            value={stock}
+                            onChange={(e) => setStock(e.target.value)}
+                            required
+                            min="0"
+                            step="1"
+                            className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6"
+                            placeholder="0"
+                        />
+                    </div>
+                </div>
 
 
                 {/* Image URL Input */}
@@ -323,22 +322,22 @@ export default function AdminEditProductPage() {
                         disabled={isLoadingData || categories.length === 0} // Disable while loading categories
                         className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 dark:text-white bg-white dark:bg-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6 disabled:opacity-50 disabled:cursor-not-allowed dark:disabled:bg-gray-700"
                     >
-                         {categories.length === 0 && isLoadingData ? (
-                             <option>Loading categories...</option>
-                         ) : categories.length === 0 ? (
-                             <option>No categories found</option>
-                         ) : (
-                             categories.map(cat => (
-                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
-                             ))
-                         )}
-                     </select>
+                        {categories.length === 0 && isLoadingData ? (
+                            <option>Loading categories...</option>
+                        ) : categories.length === 0 ? (
+                            <option>No categories found</option>
+                        ) : (
+                            categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))
+                        )}
+                    </select>
                 </div>
 
                 {/* Submit Button Area */}
                 <div className="pt-4 flex justify-end">
                     <Link href="/admin/products" className="rounded-md bg-white dark:bg-gray-700 py-2 px-3 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 mr-3">
-                         Cancel
+                        Cancel
                     </Link>
                     <button
                         type="submit"
@@ -349,10 +348,10 @@ export default function AdminEditProductPage() {
                         {isSubmitting ? (
                             <>
                                 <ArrowPathIcon className="animate-spin h-5 w-5 mr-2" /> Updating...
-                             </>
-                         ) : (
+                            </>
+                        ) : (
                             'Update Product'
-                         )}
+                        )}
                     </button>
                 </div>
             </form>

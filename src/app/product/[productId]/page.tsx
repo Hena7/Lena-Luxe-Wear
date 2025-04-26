@@ -1,13 +1,12 @@
 // src/app/product/[productId]/page.tsx
-"use client"; // Must be a client component for hooks and interaction
+"use client";
 
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useCart } from '@/contexts/CartContext'; // Import useCart
+import { useCart } from '@/contexts/CartContext';
 import type { Product } from '@prisma/client';
 import Image from 'next/image';
 import Link from 'next/link';
-// Removed 'notFound' as we handle it via state in client component
 
 // Define props type for the client component
 type ProductPageProps = {
@@ -17,9 +16,9 @@ type ProductPageProps = {
   searchParams?: { [key: string]: string | string[] | undefined };
 }
 
-export default function ProductDetailPage({ params, searchParams }: ProductPageProps) {
+export default function ProductDetailPage({ params }: any) {
   const { t, locale } = useLanguage();
-  const { addItem } = useCart(); // Get addItem function from Cart Context
+  const { addItem } = useCart();
   const { productId } = params;
 
   // State for the product data, loading, and error status
@@ -235,12 +234,12 @@ export default function ProductDetailPage({ params, searchParams }: ProductPageP
 
       {/* Related Products Section (Placeholder - fetch and display logic needed) */}
       {/* <div className="mt-16 pt-10 border-t border-gray-200 dark:border-gray-700">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
-              {locale === 'am' ? 'ተዛማጅ ምርቶች' : 'Related Products'}
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400">[ Related products could be displayed here using ProductCard components ]</p>
-            {/* Example: Render more ProductCards fetched based on current product's category *}
-        </div> */}
+                <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
+                    {locale === 'am' ? 'ተዛማጅ ምርቶች' : 'Related Products'}
+                </h2>
+                <p className="text-gray-500 dark:text-gray-400">[ Related products could be displayed here using ProductCard components ]</p>
+                {/* Example: Render more ProductCards fetched based on current product's category *}
+            </div> */}
     </div>
   );
 }
