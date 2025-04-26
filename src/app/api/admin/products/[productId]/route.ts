@@ -28,7 +28,7 @@ interface UpdateProductRequestBody {
 // --- PUT Handler: Update Existing Product (ADMIN ONLY) ---
 export async function PUT(
     request: NextRequest,
-    context: any // <<< Use 'any' here
+    context: any // <<< Use 'any' h ere
 ) {
     // Access params carefully with optional chaining and assertion
     const productId = context?.params?.productId as string;
