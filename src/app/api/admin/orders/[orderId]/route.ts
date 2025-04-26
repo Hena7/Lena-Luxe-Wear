@@ -4,9 +4,9 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
-import type { Role } from '@prisma/client';
+
 import type { JWTPayload } from 'jose';
-import { OrderStatus } from '@prisma/client'; // <<< IMPORT OrderStatus Enum
+import { OrderStatus, Role } from '@prisma/client'; // <<< IMPORT OrderStatus Enum
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const secretKey = new TextEncoder().encode(JWT_SECRET);
@@ -73,13 +73,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 // TODO: Add PUT handler here later for updating order status
 // export async function PUT(request: NextRequest, context: RouteContext) { /* ... update status ... */ }
+// --- PUT Handler: Update Order Status (ADMIN ONLY) ---
 export async function PUT(request: NextRequest, context: RouteContext) {
     const orderId = context.params.orderId;
     console.log(`API: Received request to UPDATE status for order ${orderId} (Admin)`);
 
     // 1. Verify Admin Authentication
-    // (Reuse auth logic from GET/POST)
-    if (!JWT_SECRET || secretKey.length === 0) { /* ... */ }
+    if (!JWT_SECRET || secretKey.length === 0) { return NextResponse.json({ message: "Server configuration error." }, { status: 500 }); }
     const token = request.cookies.get('sessionToken')?.value;
     if (!token) { return NextResponse.json({ message: "Unauthorized" }, { status: 401 }); }
 
@@ -88,18 +88,18 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         if (!payload || payload.role !== 'ADMIN') {
             return NextResponse.json({ message: "Forbidden" }, { status: 403 });
         }
-        console.log(`API: Admin user ${payload.email} authenticated for order update ${orderId}.`);
+         console.log(`API: Admin user ${payload.email} authenticated for order status update ${orderId}.`);
     } catch (error) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     // 2. Parse and Validate Request Body for Status
-    let body: { status?: OrderStatus }; // Expect only status
+    let body: { status?: OrderStatus }; // Expect structure like { "status": "SHIPPED" }
     try {
         body = await request.json();
-        console.log(`API: Update order ${orderId} request body:`, body);
+        console.log(`API: Update order ${orderId} status request body:`, body);
 
-        // Validate status
+        // Validate the received status value against the OrderStatus enum
         if (!body.status || !Object.values(OrderStatus).includes(body.status)) {
             throw new Error(`Invalid or missing status value. Valid statuses are: ${Object.values(OrderStatus).join(', ')}`);
         }
@@ -114,10 +114,13 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             where: { id: orderId },
             data: {
                 status: body.status, // Update only the status field
-                // updatedAt is handled automatically by @updatedAt
+                // Prisma automatically updates the 'updatedAt' field
             },
-             // Optionally return updated order details
-             select: { id: true, status: true, updatedAt: true }
+             select: { // Return the updated status and timestamp
+                 id: true,
+                 status: true,
+                 updatedAt: true
+             }
         });
 
         console.log(`API: Successfully updated order ${orderId} status to ${updatedOrder.status}`);
@@ -126,12 +129,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     } catch (error: any) {
         console.error(`API: Failed to update status for order ${orderId}:`, error);
-        if (error.code === 'P2025') { // Record not found
+        if (error.code === 'P2025') { // Prisma code for Record to update not found
             return NextResponse.json({ message: `Order with ID ${orderId} not found.` }, { status: 404 });
         }
+        // Handle other potential database errors
         return NextResponse.json({ message: "Error updating order status.", error: error.message }, { status: 500 });
     }
-}
+} // End PUT Handler
 
-// --- DELETE Handler (Optional - Placeholder) ---
+
+// --- DELETE Handler (Optional - Placeholder for deleting an order) ---
 // export async function DELETE(request: NextRequest, context: RouteContext) { /* ... */ }

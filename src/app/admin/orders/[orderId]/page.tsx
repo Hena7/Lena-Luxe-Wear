@@ -72,26 +72,34 @@ export default function AdminOrderDetailPage() {
 
     // --- Handler to Update Status ---
     const handleStatusChange = async (newStatus: OrderStatus) => {
-        if (!order) return;
+        if (!order) return; // Ensure order data is loaded
+        // Prevent pointless updates
+        if (newStatus === order.status) {
+             console.log("Status unchanged, skipping update.");
+             return;
+        }
         console.log(`Attempting to update order ${order.id} to status ${newStatus}`);
         setIsUpdatingStatus(true);
         setStatusUpdateError(null);
         try {
-            // TODO: Create this API endpoint (PUT /api/admin/orders/[orderId])
+            // Call the PUT endpoint
             const response = await fetch(`/api/admin/orders/${order.id}`, {
-                method: 'PUT',
+                method: 'PUT', // Correct method
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus }),
+                body: JSON.stringify({ status: newStatus }), // Send the new status
             });
-             const result = await response.json();
+             const result = await response.json(); // Parse response
             if (!response.ok) {
+                 // Use error message from API response
                  throw new Error(result.message || `Failed to update status: ${response.status}`);
              }
-             console.log("Status update successful:", result);
-             // Refetch order details to show the updated status
-             await fetchOrderDetails();
-             // OR optimistically update local state:
-             // setOrder(prev => prev ? { ...prev, status: newStatus, updatedAt: new Date() } : null);
+             console.log("Status update successful via API:", result);
+
+             // Option A (Simpler & Recommended): Refetch data to guarantee consistency
+             await fetchOrderDetails(); // Re-fetch the entire order detail
+
+             // Option B (Optimistic Update - more complex, potential sync issues):
+             // setOrder(prev => prev ? { ...prev, status: result.status, updatedAt: new Date(result.updatedAt) } : null);
 
          } catch (err: any) {
              console.error("Status update failed:", err);
@@ -100,6 +108,7 @@ export default function AdminOrderDetailPage() {
              setIsUpdatingStatus(false);
          }
     };
+
 
 
     // --- Render Logic ---
@@ -190,18 +199,18 @@ export default function AdminOrderDetailPage() {
                                  <label htmlFor="orderStatus" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Current Status:</label>
                                  <p className={`mt-1 text-sm font-medium inline-flex items-center rounded-full px-3 py-1 ${getStatusColor(order.status)}`}>{order.status}</p> {/* Use helper */}
                              </div>
-                              <div>
+                             <div>
                                  <label htmlFor="newStatus" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Change Status to:</label>
                                   <select
                                      id="newStatus"
                                      name="newStatus"
-                                     defaultValue={order.status} // Start with current status
+                                     value={order.status} // Reflect current status
                                      disabled={isUpdatingStatus}
-                                     onChange={(e) => handleStatusChange(e.target.value as OrderStatus)} // Call handler on change
+                                     onChange={(e) => handleStatusChange(e.target.value as OrderStatus)} // Trigger handler
                                      className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
                                  >
-                                      {orderStatuses.map(status => (
-                                          <option key={status} value={status}>{status}</option> // TODO: Translate options
+                                      {orderStatuses.map(status => ( // Use defined statuses array
+                                          <option key={status} value={status}>{status}</option>
                                       ))}
                                   </select>
                              </div>
