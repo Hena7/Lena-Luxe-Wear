@@ -12,11 +12,16 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const secretKey = new TextEncoder().encode(JWT_SECRET);
 
 interface UserJwtPayload extends JWTPayload { /* ... userId, email, role ... */ }
-interface RouteContext { params: { orderId: string } }
+//interface RouteContext { params: { orderId: string } }
 
 // Handler for GET requests to fetch a single order by ID (ADMIN ONLY)
-export async function GET(request: NextRequest, context: RouteContext) {
-    const orderId = context.params.orderId;
+export async function GET(
+    request: NextRequest,
+    // Directly type the second argument's expected structure
+    { params }: { params: { orderId: string } }
+) {
+    // Destructure orderId directly from the params object in the argument
+    const orderId = params.orderId;
     console.log(`API: Received request for single order ID: ${orderId} (Admin)`);
     console.log(`API_ORDER_DETAIL: Received request for orderId: ${orderId}`);
     // 1. Verify Admin Authentication
@@ -74,8 +79,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
 // TODO: Add PUT handler here later for updating order status
 // export async function PUT(request: NextRequest, context: RouteContext) { /* ... update status ... */ }
 // --- PUT Handler: Update Order Status (ADMIN ONLY) ---
-export async function PUT(request: NextRequest, context: RouteContext) {
-    const orderId = context.params.orderId;
+export async function PUT(
+    request: NextRequest,
+    // Directly type the second argument's expected structure
+    { params }: { params: { orderId: string } }
+) {
+    // Destructure orderId directly from the params object in the argument
+    const orderId = params.orderId;
     console.log(`API: Received request to UPDATE status for order ${orderId} (Admin)`);
 
     // 1. Verify Admin Authentication
