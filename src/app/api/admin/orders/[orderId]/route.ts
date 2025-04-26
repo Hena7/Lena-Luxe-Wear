@@ -13,16 +13,16 @@ const secretKey = new TextEncoder().encode(JWT_SECRET);
 
 interface UserJwtPayload extends JWTPayload { /* ... userId, email, role ... */ }
 //interface RouteContext { params: { orderId: string } }
-type OrderRouteParams = {
-    orderId: string;
-}
+// type OrderRouteParams = {
+//     orderId: string;
+// }
 
 // Handler for GET requests to fetch a single order by ID (ADMIN ONLY)
 export async function GET(
     request: NextRequest,
-    context: { params: OrderRouteParams } // Use the defined type here
+    context: any // <<< Use 'any' temporarily
 ) {
-    const orderId = context.params.orderId;
+    const orderId = context?.params?.orderId as string;
     
 
     console.log(`API: Received request for single order ID: ${orderId} (Admin)`);
@@ -84,10 +84,9 @@ export async function GET(
 // --- PUT Handler: Update Order Status (ADMIN ONLY) ---
 export async function PUT(
     request: NextRequest,
-    context: { params: OrderRouteParams } // Use the defined type here
+    context: any // <<< Use 'any' temporarily
 ) {
-     const orderId = context.params.orderId;
-     // ... rest of PUT handler
+    const orderId = context?.params?.orderId as string;
 
     console.log(`API: Received request to UPDATE status for order ${orderId} (Admin)`);
 
