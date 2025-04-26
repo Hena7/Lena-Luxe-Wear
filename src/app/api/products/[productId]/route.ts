@@ -5,16 +5,19 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server'; // Use NextRequest for context type access if needed
 
 // Define interface for the context object containing route params
-interface RouteContext {
-    params: {
-        productId: string; // Must match the folder name '[productId]'
-    }
-}
+// interface RouteContext {
+//     params: {
+//         productId: string; // Must match the folder name '[productId]'
+//     }
+// }
 
 // Handler for GET requests to /api/products/[productId]
-export async function GET(request: NextRequest, context: RouteContext) {
-    const { params } = context; // Destructure params from context
-    const productId = params.productId;
+export async function GET(
+    request: NextRequest,
+    context: any // <<< Use 'any' h ere
+) {
+    // Access params carefully with optional chaining and assertion
+    const productId = context?.params?.productId as string;
     console.log(`API received request for single product ID: ${productId}`); // Log received ID
 
     // Validate if productId was actually captured
