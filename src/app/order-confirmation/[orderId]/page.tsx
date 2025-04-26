@@ -6,9 +6,10 @@ import { useLanguage } from '@/contexts/LanguageContext'; // Assuming path is co
 
 
 // Basic page component, no React.use() needed here for direct access
-export default function OrderConfirmationPage({ params }: { params: { orderId: string } }) {
+export default function OrderConfirmationPage({ params }: any) {
     // Access orderId directly from destructured params
-    const { orderId } = params;
+    const orderId = params?.orderId as string || 'Unknown'; // Use optional chaining and assertion/fallback
+
     const { locale } = useLanguage(); 
 
     return (
