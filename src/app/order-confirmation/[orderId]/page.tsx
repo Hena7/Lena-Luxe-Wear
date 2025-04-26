@@ -4,14 +4,12 @@
 import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext'; // Assuming path is correct
 
-interface ConfirmationPageProps {
-    params: { orderId: string };
-}
 
 // Basic page component, no React.use() needed here for direct access
-export default function OrderConfirmationPage({ params }: ConfirmationPageProps) {
-     const { orderId } = params;
-     const { locale } = useLanguage();
+export default function OrderConfirmationPage({ params }: { params: { orderId: string } }) {
+    // Access orderId directly from destructured params
+    const { orderId } = params;
+    const { locale } = useLanguage(); 
 
     return (
          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
