@@ -7,18 +7,39 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
-import type { Order, OrderItem, User, Product, OrderStatus } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { ArrowPathIcon } from '@heroicons/react/24/solid';
 
 // Type for the detailed order data fetched from API
-interface AdminOrderDetailView extends Order {
-    user: Pick<User, 'id' | 'email' | 'name' | 'phoneNumber'> | null;
-    items: (OrderItem & {
-        product: Pick<Product, 'id' | 'name' | 'imageUrl'> | null;
-    })[];
+type AdminOrderDetailView = {
+    id: string;
+    totalAmount: number;
+    status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
+    createdAt: string | Date;
+    updatedAt: string | Date;
+    userId: string;
+    user: {
+        id: string;
+        email: string;
+        name: string | null;
+        phoneNumber: string;
+    } | null;
+    items: {
+        id: string;
+        quantity: number;
+        price: number;
+        productId: string;
+        orderId: string;
+        product: {
+            id: string;
+            name: string;
+            imageUrl: string | null;
+        } | null;
+    }[];
 }
 
 // Type for status update options
+type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
 const orderStatuses: OrderStatus[] = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'];
 
 export default function AdminOrderDetailPage({ params }: any) {

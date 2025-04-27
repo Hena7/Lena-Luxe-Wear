@@ -6,14 +6,26 @@ import { useAuth } from '@/contexts/AuthContext';      // Adjust path if needed
 import { useLanguage } from '@/contexts/LanguageContext'; // Adjust path if needed
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import type { Category, Product } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { ArrowPathIcon } from '@heroicons/react/24/solid'; // Loading spinner icon
 
 // Type for category options fetched for the dropdown
-type CategoryOption = Pick<Category, 'id' | 'name'>;
+type CategoryOption = {
+    id: string;
+    name: string;
+}
 
-// Type for product data fetched for editing (ensure API returns this shape)
-interface ProductEditData extends Product {
+// Type for product data fetched for editing
+type ProductEditData = {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    imageUrl: string | null;
+    stock: number;
+    categoryId: string | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
     category: CategoryOption | null;
 }
 
