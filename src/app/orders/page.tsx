@@ -200,7 +200,7 @@ export default function UserOrdersPage() {
                                         <dt className="font-medium text-gray-500 dark:text-gray-400">{locale === 'am' ? 'ቀን' : 'Date Placed'}</dt>
                                         <dd className="mt-1 text-gray-700 dark:text-gray-200">
                                             <time dateTime={order.createdAt.toString()}>
-                                                {new Date(order.createdAt).toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                                {order.createdAt ? new Date(order.createdAt).toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
                                             </time>
                                         </dd>
                                     </div>

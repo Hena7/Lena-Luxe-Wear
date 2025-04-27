@@ -139,7 +139,8 @@ export default function AdminOrderDetailPage({ params }: any) {
     }
 
     // Formatters
-    const formatDate = (dateString: string | Date) => new Date(dateString).toLocaleString(locale === 'am' ? 'am-ET' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' });
+    const formatDate = (dateString: string | Date | undefined) =>
+        dateString ? new Date(dateString).toLocaleString(locale === 'am' ? 'am-ET' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A';
     const formatCurrency = (amount: number) => (locale === 'am' ? `${amount.toFixed(2)} ብር` : `$${amount.toFixed(2)}`);
 
     return (

@@ -233,7 +233,7 @@ export default function AdminProductsPage() {
                                                     {product.stock}
                                                 </td>
                                                 <td className="hidden sm:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                                                    {new Date(product.createdAt).toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    {product.createdAt ? new Date(product.createdAt).toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
                                                 </td>
                                                 <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 space-x-3">
                                                     {/* Edit Link */}

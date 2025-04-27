@@ -150,7 +150,7 @@ export default function AdminOrdersPage() {
                                                     <span title={order.user?.email || 'Unknown Email'}>{order.user?.name || order.user?.email || <span className="italic text-gray-400">N/A</span>}</span>
                                                 </td>
                                                 <td className="hidden sm:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                                                    {new Date(order.createdAt).toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    {order.createdAt ? new Date(order.createdAt).toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
                                                 </td>
                                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 font-medium">
                                                     {locale === 'am' ? `${order.totalAmount.toFixed(2)} ብር` : `$${order.totalAmount.toFixed(2)}`}

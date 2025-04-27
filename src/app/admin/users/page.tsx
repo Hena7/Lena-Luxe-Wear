@@ -6,11 +6,11 @@ import { useAuth } from '@/contexts/AuthContext'; // Check auth state
 import { useLanguage } from '@/contexts/LanguageContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { User, Role } from '@prisma/client'; // Import types
+import type { Prisma } from '@prisma/client'; // Import Prisma namespace
 
 // Define the shape of User data returned by our admin API
 // (Includes _count if you added it)
-type AdminUserView = Pick<User, 'id' | 'email' | 'name' | 'phoneNumber' | 'role' | 'createdAt' | 'updatedAt'> & {
+type AdminUserView = Pick<Prisma.UserUncheckedCreateInput, 'id' | 'email' | 'name' | 'phoneNumber' | 'role' | 'createdAt' | 'updatedAt'> & {
     _count?: {
         orders: number;
     };
@@ -29,17 +29,17 @@ export default function AdminUsersPage() {
         console.log("ADMIN USERS PAGE EFFECT: isAuthLoading:", isAuthLoading, "currentUser:", currentUser); // Log state
 
         if (!isAuthLoading && !currentUser) {
-             console.log("ADMIN USERS PAGE EFFECT: Redirecting to login (no user).");
-             router.replace('/login?redirectedFrom=/admin/users');
-             return;
+            console.log("ADMIN USERS PAGE EFFECT: Redirecting to login (no user).");
+            router.replace('/login?redirectedFrom=/admin/users');
+            return;
         }
 
         if (!isAuthLoading && currentUser) { // Check user exists first
             console.log(`ADMIN USERS PAGE EFFECT: Checking role: ${currentUser.role}`); // <<< ADD THIS
             if (currentUser.role !== 'ADMIN') {
-               console.error(`!!! REDIRECTING ADMIN?: AuthLoading=${isAuthLoading}, User Role=${currentUser?.role}`);
-               router.replace('/');
-               return;
+                console.error(`!!! REDIRECTING ADMIN?: AuthLoading=${isAuthLoading}, User Role=${currentUser?.role}`);
+                router.replace('/');
+                return;
             }
         }
         // Fetch users if authenticated and is admin
@@ -53,11 +53,11 @@ export default function AdminUsersPage() {
                     const response = await fetch('/api/admin/users'); // Fetch from admin API
 
                     if (response.status === 401 || response.status === 403) { // Handle auth/forbidden errors
-                         const errorData = await response.json().catch(() => ({}));
-                         throw new Error(errorData.message || `Access denied: Status ${response.status}`);
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.message || `Access denied: Status ${response.status}`);
                     }
                     if (!response.ok) {
-                         const errorData = await response.json().catch(() => ({}));
+                        const errorData = await response.json().catch(() => ({}));
                         throw new Error(errorData.message || `HTTP error fetching users! Status: ${response.status}`);
                     }
 
@@ -75,8 +75,8 @@ export default function AdminUsersPage() {
             };
             fetchUsers();
         } else if (!isAuthLoading) {
-             console.log("ADMIN USERS PAGE EFFECT: Auth loaded, but not admin or no user. Stopping loading.");
-             setIsLoading(false);
+            console.log("ADMIN USERS PAGE EFFECT: Auth loaded, but not admin or no user. Stopping loading.");
+            setIsLoading(false);
         }
 
 
@@ -86,7 +86,7 @@ export default function AdminUsersPage() {
     const isLoadingPage = isLoading || isAuthLoading;
 
     if (isLoadingPage) {
-         return <div className="container mx-auto p-6 text-center">Loading users...</div>;
+        return <div className="container mx-auto p-6 text-center">Loading users...</div>;
     }
 
     if (error) {
@@ -94,7 +94,7 @@ export default function AdminUsersPage() {
         return <div className="container mx-auto p-6 text-center text-red-600">Error: {error}</div>;
     }
 
-     // Add check if user is definitely not admin (should have been redirected, but belt-and-suspenders)
+    // Add check if user is definitely not admin (should have been redirected, but belt-and-suspenders)
     if (!currentUser || currentUser.role !== 'ADMIN') {
         return <div className="container mx-auto p-6 text-center text-red-600">Access Denied.</div>;
     }
@@ -136,43 +136,43 @@ export default function AdminUsersPage() {
                                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                                     {users.length === 0 ? (
                                         <tr>
-                                             <td colSpan={7} className="whitespace-nowrap py-4 px-3 text-sm text-center text-gray-500 dark:text-gray-400">No users found.</td>
-                                         </tr>
-                                     ) : (
-                                         users.map((user) => (
-                                             <tr key={user.id}>
-                                                 <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">{user.name || <span className="italic text-gray-400">N/A</span>}</td>
-                                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{user.email}</td>
-                                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{user.phoneNumber}</td>
-                                                 <td className="whitespace-nowrap px-3 py-4 text-sm">
-                                                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${user.role === 'ADMIN' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'}`}>
+                                            <td colSpan={7} className="whitespace-nowrap py-4 px-3 text-sm text-center text-gray-500 dark:text-gray-400">No users found.</td>
+                                        </tr>
+                                    ) : (
+                                        users.map((user) => (
+                                            <tr key={user.id}>
+                                                <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">{user.name || <span className="italic text-gray-400">N/A</span>}</td>
+                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{user.email}</td>
+                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{user.phoneNumber}</td>
+                                                <td className="whitespace-nowrap px-3 py-4 text-sm">
+                                                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${user.role === 'ADMIN' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'}`}>
                                                         {user.role}
-                                                     </span>
-                                                 </td>
-                                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">{user._count?.orders ?? 0}</td>
-                                                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                                                    {new Date(user.createdAt).toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US')}
-                                                  </td>
-                                                  <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                                      {/* Add Edit/Delete links/buttons later */}
-                                                      {/* <a href="#" className="text-indigo-600 hover:text-indigo-900">Edit<span className="sr-only">, {user.name}</span></a> */}
-                                                      <span className="text-gray-400"> TBD </span>
-                                                  </td>
-                                             </tr>
-                                         ))
-                                     )}
+                                                    </span>
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">{user._count?.orders ?? 0}</td>
+                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString(locale === 'am' ? 'am-ET' : 'en-US') : 'N/A'}
+                                                </td>
+                                                <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                                    {/* Add Edit/Delete links/buttons later */}
+                                                    {/* <a href="#" className="text-indigo-600 hover:text-indigo-900">Edit<span className="sr-only">, {user.name}</span></a> */}
+                                                    <span className="text-gray-400"> TBD </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             </div>
-             {/* Optional: Back link */}
-              <div className="mt-8">
-                 <Link href="/admin" className="text-sm font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300">
-                     ← Back to Admin Dashboard
-                 </Link>
-             </div>
+            {/* Optional: Back link */}
+            <div className="mt-8">
+                <Link href="/admin" className="text-sm font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300">
+                    ← Back to Admin Dashboard
+                </Link>
+            </div>
         </div>
     );
 }
