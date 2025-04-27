@@ -1,11 +1,29 @@
 // src/app/shop/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
-
-import { useLanguage } from '@/contexts/LanguageContext'; // Ensure this path is correct
-import type { Product, Category } from '@prisma/client';
+import React, { useState, useEffect } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { useCart } from '@/contexts/CartContext';
+import type { Prisma } from '@prisma/client';
 import ProductCard from '@/components/products/ProductCard';
+
+// Type definitions
+type Category = {
+    id: string;
+    name: string;
+}
+
+type Product = {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    imageUrl: string | null;
+    stock: number;
+    categoryId: string | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+}
 
 // Derived type representing a Product with its Category relation included
 interface ProductWithCategory extends Product {

@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
-import type { Product } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -14,6 +14,19 @@ type ProductPageProps = {
     productId: string;
   };
   searchParams?: { [key: string]: string | string[] | undefined };
+}
+
+// Define product type
+type Product = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  imageUrl: string | null;
+  stock: number;
+  categoryId: string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 export default function ProductDetailPage({ params }: any) {

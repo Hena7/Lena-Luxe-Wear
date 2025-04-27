@@ -2,18 +2,29 @@
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
-// Assuming you created the types file:
-// import type { CartItem, CartState } from '@/types/cart';
-// OR define types directly here if you prefer:
-import type { Product } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
-export interface CartItem extends Pick<Product, 'id' | 'name' | 'price' | 'imageUrl'> {
-    quantity: number;
+// Define product type for cart operations
+type Product = {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    imageUrl: string | null;
+    stock: number;
+    categoryId: string | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
 }
+
+export interface CartItem extends Pick<Product, 'id' | 'name' | 'price'> {
+    quantity: number;
+    imageUrl: string | null;
+}
+
 export interface CartState {
     items: CartItem[];
 }
-// End type definitions
 
 interface CartContextProps extends CartState {
     addItem: (item: Product, quantity?: number) => void;
@@ -22,7 +33,7 @@ interface CartContextProps extends CartState {
     clearCart: () => void;
     getItemCount: () => number;
     getCartTotal: () => number;
-    isCartLoading: boolean; // Add loading state for persistence
+    isCartLoading: boolean;
 }
 
 const CartContext = createContext<CartContextProps | undefined>(undefined);
@@ -40,8 +51,8 @@ const getInitialCart = (): CartState => {
             const parsedCart = JSON.parse(storedCart);
             // Basic validation (check if it has an items array)
             if (Array.isArray(parsedCart?.items)) {
-                 // TODO: Add more robust validation of item structure if needed
-                 return parsedCart as CartState;
+                // TODO: Add more robust validation of item structure if needed
+                return parsedCart as CartState;
             }
         }
     } catch (error) {
@@ -64,7 +75,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     // Persist cart to localStorage whenever it changes
     useEffect(() => {
-         // Don't save during initial load before hydration is complete
+        // Don't save during initial load before hydration is complete
         if (!isCartLoading) {
             try {
                 localStorage.setItem('shoppingCart', JSON.stringify(cart));
@@ -89,19 +100,19 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
                     ...newItems[existingItemIndex],
                     quantity: newItems[existingItemIndex].quantity + quantity
                 };
-                 // Optional: Check against stock if available in product data
-                 // if(product.stock && updatedItem.quantity > product.stock) {
-                 //    alert("Cannot add more than available stock!"); // Or other feedback
-                 //    return prevCart; // Don't update if stock exceeded
-                 // }
+                // Optional: Check against stock if available in product data
+                // if(product.stock && updatedItem.quantity > product.stock) {
+                //    alert("Cannot add more than available stock!"); // Or other feedback
+                //    return prevCart; // Don't update if stock exceeded
+                // }
                 newItems[existingItemIndex] = updatedItem;
             } else {
                 // Item doesn't exist, add new item
-                 // Optional: Check against stock
-                 // if(product.stock && quantity > product.stock) {
-                 //    alert("Cannot add more than available stock!");
-                 //    return prevCart; // Don't add if stock exceeded
-                 // }
+                // Optional: Check against stock
+                // if(product.stock && quantity > product.stock) {
+                //    alert("Cannot add more than available stock!");
+                //    return prevCart; // Don't add if stock exceeded
+                // }
                 newItems.push({
                     id: product.id,
                     name: product.name,
@@ -124,18 +135,18 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     // Function to update the quantity of an existing item
     const updateQuantity = useCallback((itemId: string, newQuantity: number) => {
-         if (newQuantity <= 0) {
+        if (newQuantity <= 0) {
             // If quantity is zero or less, remove the item
-             removeItem(itemId);
-             return;
+            removeItem(itemId);
+            return;
         }
         setCart((prevCart) => ({
             ...prevCart,
             items: prevCart.items.map(item =>
                 item.id === itemId
-                ? { ...item, quantity: newQuantity }
-                // Optional: Add stock check here too if product data is available
-                : item
+                    ? { ...item, quantity: newQuantity }
+                    // Optional: Add stock check here too if product data is available
+                    : item
             )
         }));
     }, [removeItem]); // Include removeItem in dependency array
@@ -147,7 +158,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     // Helper function to get total number of items (sum of quantities)
     const getItemCount = useCallback(() => {
-         return cart.items.reduce((total, item) => total + item.quantity, 0);
+        return cart.items.reduce((total, item) => total + item.quantity, 0);
     }, [cart.items]); // Depends on items array
 
 

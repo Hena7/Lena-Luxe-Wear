@@ -6,7 +6,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { Category } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+import { ArrowPathIcon } from '@heroicons/react/24/solid';
+
+// Type definitions
+type Category = {
+    id: string;
+    name: string;
+}
 
 // Type for category options fetched for the dropdown
 type CategoryOption = Pick<Category, 'id' | 'name'>;
@@ -48,7 +55,7 @@ export default function AdminNewProductPage() {
                 const data: CategoryOption[] = await response.json();
                 setCategories(data);
                 if (data.length > 0) {
-                     setCategoryId(data[0].id); // Default to the first category initially
+                    setCategoryId(data[0].id); // Default to the first category initially
                 }
             } catch (err) {
                 console.error(err);
@@ -69,23 +76,23 @@ export default function AdminNewProductPage() {
         setSuccess(null);
 
         // Validate numeric inputs
-         const priceNum = parseFloat(price);
-         const stockNum = parseInt(stock, 10);
+        const priceNum = parseFloat(price);
+        const stockNum = parseInt(stock, 10);
 
-         if (isNaN(priceNum) || priceNum < 0) {
-             setError('Please enter a valid non-negative price.');
-             setIsLoading(false);
-             return;
-         }
-         if (isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) {
-              setError('Please enter a valid non-negative whole number for stock.');
-              setIsLoading(false);
-              return;
-         }
+        if (isNaN(priceNum) || priceNum < 0) {
+            setError('Please enter a valid non-negative price.');
+            setIsLoading(false);
+            return;
+        }
+        if (isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) {
+            setError('Please enter a valid non-negative whole number for stock.');
+            setIsLoading(false);
+            return;
+        }
         if (!categoryId) {
-             setError('Please select a category.');
-             setIsLoading(false);
-             return;
+            setError('Please select a category.');
+            setIsLoading(false);
+            return;
         }
 
 
@@ -124,14 +131,14 @@ export default function AdminNewProductPage() {
     };
 
 
-     // Initial loading / Auth check
-     if (isAuthLoading || isLoadingCategories) {
-         return <div className="container mx-auto p-6 text-center">Loading form...</div>;
-     }
-     // Should be redirected if not admin, but double-check
-      if (!currentUser || currentUser.role !== 'ADMIN') {
-         return <div className="container mx-auto p-6 text-center text-red-600">Access Denied.</div>;
-     }
+    // Initial loading / Auth check
+    if (isAuthLoading || isLoadingCategories) {
+        return <div className="container mx-auto p-6 text-center">Loading form...</div>;
+    }
+    // Should be redirected if not admin, but double-check
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+        return <div className="container mx-auto p-6 text-center text-red-600">Access Denied.</div>;
+    }
 
 
     return (
@@ -140,15 +147,15 @@ export default function AdminNewProductPage() {
                 <Link href="/admin/products" className="text-sm font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300">
                     ← Back to Products List
                 </Link>
-             </div>
+            </div>
             <h1 className="text-2xl font-semibold leading-tight text-gray-900 dark:text-white mb-6">
                 Create New Product
             </h1>
 
             <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
                 {/* Error/Success Messages */}
-                 {error && <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-3 border border-red-300 dark:border-red-600"><p className="text-sm text-red-700 dark:text-red-200">{error}</p></div>}
-                 {success && <div className="rounded-md bg-green-50 dark:bg-green-900/30 p-3 border border-green-300 dark:border-green-600"><p className="text-sm text-green-700 dark:text-green-200">{success}</p></div>}
+                {error && <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-3 border border-red-300 dark:border-red-600"><p className="text-sm text-red-700 dark:text-red-200">{error}</p></div>}
+                {success && <div className="rounded-md bg-green-50 dark:bg-green-900/30 p-3 border border-green-300 dark:border-green-600"><p className="text-sm text-green-700 dark:text-green-200">{success}</p></div>}
 
                 {/* Name */}
                 <div>
@@ -162,22 +169,22 @@ export default function AdminNewProductPage() {
                     <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500" />
                 </div>
 
-                 {/* Price & Stock (inline) */}
+                {/* Price & Stock (inline) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                     <div>
+                    <div>
                         <label htmlFor="price" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price <span className="text-red-500">*</span></label>
                         <div className="relative rounded-md shadow-sm">
                             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                 <span className="text-gray-500 dark:text-gray-400 sm:text-sm">$</span> {/* Adjust currency symbol */}
-                             </div>
+                                <span className="text-gray-500 dark:text-gray-400 sm:text-sm">$</span> {/* Adjust currency symbol */}
+                            </div>
                             <input type="number" id="price" value={price} onChange={(e) => setPrice(e.target.value)} required min="0" step="0.01" className="block w-full rounded-md border border-gray-300 dark:border-gray-600 py-2 pl-7 pr-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500" placeholder="0.00" />
-                         </div>
-                     </div>
-                     <div>
-                         <label htmlFor="stock" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stock Quantity <span className="text-red-500">*</span></label>
+                        </div>
+                    </div>
+                    <div>
+                        <label htmlFor="stock" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stock Quantity <span className="text-red-500">*</span></label>
                         <input type="number" id="stock" value={stock} onChange={(e) => setStock(e.target.value)} required min="0" step="1" className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500" placeholder="0" />
-                     </div>
-                 </div>
+                    </div>
+                </div>
 
 
                 {/* Image URL */}
@@ -190,22 +197,22 @@ export default function AdminNewProductPage() {
                 <div>
                     <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category <span className="text-red-500">*</span></label>
                     <select id="category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required disabled={isLoadingCategories || categories.length === 0} className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:bg-gray-100 dark:disabled:bg-gray-700">
-                         {isLoadingCategories ? (
-                             <option>Loading categories...</option>
-                         ) : categories.length === 0 ? (
+                        {isLoadingCategories ? (
+                            <option>Loading categories...</option>
+                        ) : categories.length === 0 ? (
                             <option>No categories available</option>
-                         ) : (
-                             categories.map(cat => (
-                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
-                             ))
-                         )}
-                     </select>
+                        ) : (
+                            categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))
+                        )}
+                    </select>
                 </div>
 
                 {/* Submit Button */}
                 <div className="pt-4">
                     <button type="submit" disabled={isLoading || isLoadingCategories || categories.length === 0} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 disabled:opacity-50">
-                       {isLoading ? 'Creating...' : 'Create Product'}
+                        {isLoading ? 'Creating...' : 'Create Product'}
                     </button>
                 </div>
             </form>

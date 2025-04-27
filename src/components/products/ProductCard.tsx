@@ -7,16 +7,14 @@ interface ProductCardProps {
   id: string;
   name: string;
   price: number;
-  imageUrl: string;
+  imageUrl: string | null;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ id, name, price, imageUrl }) => {
-  // const { locale } = useLanguage(); // We'll use this later for currency
+  const { locale } = useLanguage();
 
-  // Basic price formatting (can be improved with locale)
-  const formattedPrice = `$${price.toFixed(2)}`; // Example: $25.99
-  // አማርኛ የዋጋ አቀራረጽ ምሳሌ (በኋላ እናሻሽለዋለን)
-  // const formattedPriceAm = `${price.toFixed(2)} ብር`; // Example: 25.99 ብር
+  // Basic price formatting with locale
+  const formattedPrice = locale === 'am' ? `${price.toFixed(2)} ብር` : `$${price.toFixed(2)}`;
 
   return (
     <Link href={`/product/${id}`} className="group block overflow-hidden">
@@ -27,12 +25,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ id, name, price, imageUrl }) 
         <div className="relative w-full aspect-square overflow-hidden rounded mb-3">
           {/* aspect-square makes height equal to width */}
           <Image
-            src={imageUrl}
+            src={imageUrl || '/placeholder-image.png'} // Use placeholder if imageUrl is null
             alt={name} // Important for accessibility!
             fill // Makes the image fill the container
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw" // Helps optimize image loading
             className="object-cover group-hover:scale-105 transition-transform duration-300" // Zoom effect on hover
-            // Add placeholder and blurDataURL for better loading experience later
+            onError={(e) => {
+              // Handle image loading errors
+              (e.target as HTMLImageElement).src = '/placeholder-image.png';
+              (e.target as HTMLImageElement).srcset = '';
+            }}
           />
         </div>
 
@@ -43,10 +45,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ id, name, price, imageUrl }) 
             {name}
           </h3>
           <p className="text-lg font-bold text-purple-600 dark:text-purple-400 mt-auto pt-2">
-             {/* mt-auto pushes price to the bottom if card height varies */}
+            {/* mt-auto pushes price to the bottom if card height varies */}
             {formattedPrice}
-             {/* We'll add logic to switch currency based on locale later */}
-             {/* {locale === 'am' ? formattedPriceAm : formattedPrice} */}
+            {/* We'll add logic to switch currency based on locale later */}
           </p>
         </div>
 
