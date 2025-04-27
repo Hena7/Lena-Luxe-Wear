@@ -10,7 +10,14 @@ import type { Prisma } from '@prisma/client'; // Import Prisma namespace
 
 // Define the shape of User data returned by our admin API
 // (Includes _count if you added it)
-type AdminUserView = Pick<Prisma.UserUncheckedCreateInput, 'id' | 'email' | 'name' | 'phoneNumber' | 'role' | 'createdAt' | 'updatedAt'> & {
+type AdminUserView = {
+    id: string;
+    email: string;
+    name: string | null;
+    phoneNumber: string;
+    role: 'CUSTOMER' | 'ADMIN';
+    createdAt: string | Date;
+    updatedAt: string | Date;
     _count?: {
         orders: number;
     };
