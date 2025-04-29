@@ -160,7 +160,7 @@ export default function Header() {
                      <div className="h-6 w-6 animate-pulse bg-gray-300 dark:bg-gray-600 rounded-full" title="Loading user status"></div>
                  ) : currentUser ? (
                   <> {/* Logged In State */}
-                    <Link href="/profile" className="text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-150 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900" aria-label="Account Profile" title="Account Profile">
+                    <Link href="/orders" className="text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-150 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900" aria-label="Account Profile" title="Account Profile">
                       <UserIconOutline className="w-6 h-6" aria-hidden="true" />
                     </Link>
                     <button
