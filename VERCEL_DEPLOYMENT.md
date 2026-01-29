@@ -1,5 +1,11 @@
 # 🚀 Vercel Deployment Guide for Lena Luxe Wear
 
+## 🚨 CRITICAL SECURITY PATCH (Jan 29, 2026)
+
+**Issue**: Critical RCE vulnerability in React Server Components (CVE-2025-55182).
+**Fix**: You MUST update `next`, `react`, and `react-dom` to the latest versions.
+**Status**: We have run `npm install next@latest react@latest react-dom@latest`. Push these changes to deploy safely.
+
 ## Issue You're Experiencing
 
 Your build is failing at the `npx prisma generate` step during deployment. This is typically caused by missing environment variables in Vercel.
