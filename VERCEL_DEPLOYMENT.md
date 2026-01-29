@@ -76,6 +76,19 @@ OR
 
 ## 🔧 Common Issues & Solutions
 
+### Issue: "Cannot find module ... wasm-base64.js"
+
+**Solution**: This is a Prisma 6 + Vercel compatibility issue.
+
+1. In `schema.prisma`, change `engineType` to `"library"`:
+   ```prisma
+   generator client {
+     provider   = "prisma-client-js"
+     engineType = "library"
+   }
+   ```
+2. Delete `node_modules` locally and reinstall to ensure a clean lockfile.
+
 ### Issue: "Error: P1001: Can't reach database server"
 
 **Solution**: Check that your DATABASE_URL is correct and that your Supabase database is active.
