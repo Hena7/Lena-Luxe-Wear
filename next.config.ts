@@ -6,10 +6,6 @@ const nextConfig: NextConfig = {
     // Use typescript option instead of tsconfig
     ignoreBuildErrors: true,
   },
-  eslint: {
-    // This is still valid but with proper camelCase
-    ignoreDuringBuilds: true,
-  },
   images: {
     remotePatterns: [
       {
