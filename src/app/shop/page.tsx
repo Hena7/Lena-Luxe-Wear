@@ -1,425 +1,247 @@
-// src/app/shop/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useCart } from '@/contexts/CartContext';
-import type { Prisma } from '@prisma/client';
-import ProductCard from '@/components/products/ProductCard';
+import React, { useState, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import ProductCard from "@/components/products/ProductCard";
+import { MagnifyingGlassIcon, FunnelIcon } from "@heroicons/react/24/outline";
 
-// Type definitions
 type Category = {
-    id: string;
-    name: string;
-}
+  id: string;
+  name: string;
+};
 
 type Product = {
-    id: string;
-    name: string;
-    description: string | null;
-    price: number;
-    imageUrl: string | null;
-    stock: number;
-    categoryId: string | null;
-    createdAt: string | Date;
-    updatedAt: string | Date;
-}
-
-// Derived type representing a Product with its Category relation included
-interface ProductWithCategory extends Product {
-    category: {
-        id: string;
-        name: string;
-    } | null; // Allow null in case relation is optional or data inconsistent
-}
-
-// Type for categories fetched from API or used in state
-type CategoryOption = Pick<Category, 'id' | 'name'>;
-
-// Type for sorting options
-type SortOption = 'default' | 'price-asc' | 'price-desc';
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  imageUrl: string | null;
+  stock: number;
+  categoryId: string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  category: Category | null;
+};
 
 export default function ShopPage() {
   const { t, locale } = useLanguage();
 
-  // State variables
-  const [allProducts, setAllProducts] = useState<ProductWithCategory[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<ProductWithCategory[]>([]);
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true);
-  const [isLoadingCategories, setIsLoadingCategories] = useState<boolean>(true);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('All');
-  const [sortOrder, setSortOrder] = useState<SortOption>('default');
 
-  // Fetch Categories Effect (runs once on mount)
-  useEffect(() => {
-      const fetchCategories = async () => {
-          console.log("Fetching categories...");
-          setIsLoadingCategories(true);
-          setError(null); // Reset error specifically for categories perhaps
-          try {
-              const response = await fetch('/api/categories');
-              if (!response.ok) {
-                  throw new Error(`HTTP error fetching categories! status: ${response.status}`);
-              }
-              const data: CategoryOption[] = await response.json();
-              setCategories(data);
-              console.log("Categories fetched successfully:", data);
-          } catch (err) {
-             console.error("Failed to fetch categories", err);
-             setError(err instanceof Error ? `Failed to load categories: ${err.message}` : 'Failed to load categories');
-          } finally {
-              setIsLoadingCategories(false);
-              console.log("Category fetch finished.");
-          }
-      };
-      fetchCategories();
-  }, []); // Empty dependency array = run once
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [sortOrder, setSortOrder] = useState("newest");
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Fetch Products Effect (runs when selectedCategoryId changes)
   useEffect(() => {
     const fetchProducts = async () => {
-      console.log(`Fetching products for category ID: ${selectedCategoryId}`);
-      setIsLoadingProducts(true);
-      setError(null); // Reset error before product fetch
+      setIsLoading(true);
+      setError(null);
+
       try {
-        let apiUrl = '/api/products';
-        if (selectedCategoryId && selectedCategoryId !== 'All') {
-           apiUrl += `?categoryId=${selectedCategoryId}`;
-        }
+        const params = new URLSearchParams();
+        if (searchQuery) params.append("q", searchQuery);
+        if (selectedCategory !== "all")
+          params.append("category", selectedCategory);
+        if (minPrice) params.append("minPrice", minPrice);
+        if (maxPrice) params.append("maxPrice", maxPrice);
+        if (sortOrder) params.append("sort", sortOrder);
 
-        const response = await fetch(apiUrl);
+        const response = await fetch(
+          `/api/products/search?${params.toString()}`,
+        );
+
         if (!response.ok) {
-           const errorData = await response.json().catch(()=>({}));
-          throw new Error(errorData.message || `HTTP error fetching products! status: ${response.status}`);
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const data: ProductWithCategory[] = await response.json();
-        setAllProducts(data); // Store the fetched products (which might be filtered by API)
-        console.log("Products fetched successfully:", data);
-
+        const data = await response.json();
+        setProducts(data.products);
+        setCategories(data.categories);
       } catch (err) {
         console.error("Failed to fetch products:", err);
-        setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching products.');
-        setAllProducts([]); // Clear products on error
+        setError(
+          err instanceof Error ? err.message : "Failed to load products",
+        );
       } finally {
-        setIsLoadingProducts(false);
-        console.log("Product fetch finished.");
+        setIsLoading(false);
       }
     };
-    fetchProducts();
-  }, [selectedCategoryId]); // Dependency: Re-run when selectedCategoryId changes
 
-  // Client-side Sorting Effect (runs when products or sort order changes)
-  useEffect(() => {
-    let productsToDisplay = [...allProducts]; // Use the latest fetched products
+    const debounceTimer = setTimeout(() => {
+      fetchProducts();
+    }, 300);
 
-    // Apply client-side sorting
-    productsToDisplay.sort((a, b) => {
-      switch (sortOrder) {
-        case 'price-asc': return a.price - b.price;
-        case 'price-desc': return b.price - a.price;
-        default: return 0; // Keep API order (e.g., createdAt desc) or add another default sort
-      }
-    });
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery, selectedCategory, minPrice, maxPrice, sortOrder]);
 
-    setFilteredProducts(productsToDisplay); // Update the state for rendering
-
-  }, [allProducts, sortOrder]); // Dependencies: Run when allProducts or sortOrder change
-
-
-  // Combine loading states for UI
-  const isLoading = isLoadingProducts || isLoadingCategories;
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedCategory("all");
+    setMinPrice("");
+    setMaxPrice("");
+    setSortOrder("newest");
+  };
 
   return (
     <div>
-      <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-8">
-        {t('navShop')}
+      <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-6">
+        {t("navShop")}
       </h1>
 
-      {/* Filter and Sort Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 md:gap-6">
-        {/* Category Filters */}
-        <div className="flex flex-wrap justify-center md:justify-start gap-2">
-          {/* "All" Button */}
-          <button
-              key="All"
-              onClick={() => setSelectedCategoryId('All')}
-              disabled={isLoading}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  selectedCategoryId === 'All'
-                      ? 'bg-purple-600 text-white border-purple-600 shadow' // Active style
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600' // Inactive style
-              }`}
-          >
-              {locale === 'am' ? 'ሁሉም' : 'All'}
-          </button>
+      <div className="mb-8 space-y-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={
+                locale === "am" ? "ምርቶችን ይፈልጉ..." : "Search products..."
+              }
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+          </div>
 
-          {/* Category Buttons */}
-          {isLoadingCategories ? (
-               <span className="text-sm text-gray-500 dark:text-gray-400 px-4 py-1.5">Loading categories...</span>
-          ) : (
-            categories.map(category => (
-                <button
-                    key={category.id}
-                    onClick={() => setSelectedCategoryId(category.id)}
-                    disabled={isLoading}
-                    className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        selectedCategoryId === category.id
-                            ? 'bg-purple-600 text-white border-purple-600 shadow' // Active style
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600' // Inactive style
-                    }`}
-                >
-                    {category.name} {/* Display category name from API */}
-                </button>
-            ))
-          )}
-           {!isLoadingCategories && categories.length === 0 && !error && (
-                <span className="text-sm text-gray-500 dark:text-gray-400 px-4 py-1.5">No categories found.</span>
-            )}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="md:hidden flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          >
+            <FunnelIcon className="h-5 w-5" />
+            {locale === "am" ? "ማጣሪያዎች" : "Filters"}
+          </button>
         </div>
 
-        {/* Sort Dropdown */}
-        <div>
-            <label htmlFor="sort-order" className="sr-only">
-                {locale === 'am' ? 'ደርድር በ' : 'Sort by'}
-            </label>
-            <select
-                id="sort-order"
+        <div
+          className={`${showFilters ? "block" : "hidden md:block"} space-y-4`}
+        >
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {locale === "am" ? "ምድብ" : "Category"}
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="all">
+                  {locale === "am" ? "ሁሉም ምድቦች" : "All Categories"}
+                </option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {locale === "am" ? "ዋጋ ክልል" : "Price Range"}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  placeholder={locale === "am" ? "ዝቅተኛ" : "Min"}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <input
+                  type="number"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder={locale === "am" ? "ከፍተኛ" : "Max"}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {locale === "am" ? "ደርድር በ" : "Sort By"}
+              </label>
+              <select
                 value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as SortOption)}
-                disabled={isLoading || isLoadingProducts} // Disable if either is loading
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                <option value="default">{locale === 'am' ? 'ነባሪ' : 'Default'}</option>
-                <option value="price-asc">{locale === 'am' ? 'ዋጋ፡ ከዝቅተኛ ወደ ከፍተኛ' : 'Price: Low to High'}</option>
-                <option value="price-desc">{locale === 'am' ? 'ዋጋ፡ ከከፍተኛ ወደ ዝቅተኛ' : 'Price: High to Low'}</option>
-            </select>
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="newest">
+                  {locale === "am" ? "አዲስ" : "Newest"}
+                </option>
+                <option value="price-asc">
+                  {locale === "am" ? "ዋጋ: ዝቅተኛ ወደ ከፍተኛ" : "Price: Low to High"}
+                </option>
+                <option value="price-desc">
+                  {locale === "am" ? "ዋጋ: ከፍተኛ ወደ ዝቅተኛ" : "Price: High to Low"}
+                </option>
+                <option value="name-asc">
+                  {locale === "am" ? "ስም: A-Z" : "Name: A-Z"}
+                </option>
+                <option value="name-desc">
+                  {locale === "am" ? "ስም: Z-A" : "Name: Z-A"}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={clearFilters}
+            className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
+          >
+            {locale === "am" ? "ማጣሪያዎችን አጽዳ" : "Clear Filters"}
+          </button>
         </div>
       </div>
 
-     {/* Loading State Display */}
-     {isLoading && (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            {locale === 'am' ? 'ምርቶች እየተጫኑ ነው...' : 'Loading products...'}
-            {/* You could add a spinner animation here */}
+      {isLoading && (
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
-     )}
+      )}
 
-     {/* Error State Display */}
-     {!isLoading && error && (
+      {error && (
         <div className="text-center py-12 text-red-600 dark:text-red-400">
-            <p>{locale === 'am' ? 'ስህተት ተፈጥሯል፡' : 'Error:'} {error}</p>
-            {/* Maybe add a retry button here? */}
+          <p>
+            {locale === "am" ? "ስህተት:" : "Error:"} {error}
+          </p>
         </div>
-     )}
+      )}
 
-      {/* Product Grid - Render only if not loading and no error */}
       {!isLoading && !error && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {/* Map over filteredProducts state */}
-              {filteredProducts.map((product) => (
-                   // Ensure ProductCard component can handle the ProductWithCategory shape
-                  <ProductCard key={product.id} {...product} />
-              ))}
+          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            {products.length}{" "}
+            {locale === "am" ? "ምርቶች ተገኝተዋል" : "products found"}
           </div>
 
-          {/* Display message if no products match filters AFTER loading/no error */}
-          {filteredProducts.length === 0 && (
-              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  {locale === 'am' ? 'ምንም የሚዛመድ ምርት አልተገኘም።' : 'No products found matching your criteria.'}
-              </div>
+          {products.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {products.map((product) => (
+                <ProductCard key={product.id} {...product} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 text-gray-500 dark:text-gray-400">
+              <p className="text-lg font-medium mb-2">
+                {locale === "am" ? "ምንም ምርት አልተገኘም" : "No products found"}
+              </p>
+              <p className="text-sm">
+                {locale === "am"
+                  ? "የፍለጋ ደንቦችዎን ይለውጡ"
+                  : "Try adjusting your search criteria"}
+              </p>
+            </div>
           )}
         </>
       )}
-
-      {/* Pagination Placeholder - Would require API changes */}
-      <div className="mt-12 text-center text-gray-500 dark:text-gray-400">
-        [ Pagination may be added later / የገጽ ቁጥሮች በኋላ ሊጨመሩ ይችላሉ ]
-      </div>
     </div>
   );
 }
-
-
-
-
-
-
-// // src/app/shop/page.tsx
-// "use client"; // We'll likely need client-side features like filtering later
-
-// import ProductCard from '@/components/products/ProductCard';
-// import { useLanguage } from '@/contexts/LanguageContext';
-// import { useEffect, useState } from 'react';
-// // We need a type for the product data coming from the API
-// import type { Product } from '@prisma/client'; // Import generated Product type!
-
-// // Define available categories statically for now
-// const staticCategories = ['All', 'T-Shirt', 'Jeans', 'Dress', 'Accessories', 'Sweater', 'Shoes']; // Match seeded data
-
-// // Define sorting options
-// type SortOption = 'default' | 'price-asc' | 'price-desc';
-
-// export default function ShopPage() {
-//   const { t, locale } = useLanguage();
-
-  
-//   // === State Variables ===
-//   const [allProducts, setAllProducts] = useState<Product[]>([]); // Store fetched products
-//   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]); // Products after filtering/sorting
-//   const [isLoading, setIsLoading] = useState<boolean>(true); // Loading state
-//   const [error, setError] = useState<string | null>(null); // Error state
-//   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-//   const [sortOrder, setSortOrder] = useState<SortOption>('default');
-//   // =======================
-
-//   // === Data Fetching Effect ===
-//   useEffect(() => {
-//     const fetchProducts = async () => {
-//       setIsLoading(true); // Start loading
-//       setError(null); // Reset error state
-//       try {
-//         const response = await fetch('/api/products'); // Fetch from our API route
-
-//         if (!response.ok) {
-//           // Handle HTTP errors (like 404, 500)
-//           throw new Error(`HTTP error! status: ${response.status}`);
-//         }
-
-//         const data: Product[] = await response.json(); // Parse JSON response
-//         setAllProducts(data); // Store all fetched products
-//         // setFilteredProducts(data); // Initially show all products (will be updated by filter/sort effect)
-
-//       } catch (err) {
-//         console.error("Failed to fetch products:", err);
-//         setError(err instanceof Error ? err.message : 'An unknown error occurred');
-//       } finally {
-//         setIsLoading(false); // Stop loading regardless of success/error
-//       }
-//     };
-
-//     fetchProducts(); // Call the fetch function when component mounts
-//   }, []); // Empty dependency array means this effect runs only once on mount
-//   // ===========================
-
-
-//   // === Filtering and Sorting Effect ===
-//   useEffect(() => {
-//     // This effect runs whenever allProducts, selectedCategory, or sortOrder changes
-//     let productsToDisplay = [...allProducts]; // Start with all fetched products
-
-//     // Apply filtering
-//     if (selectedCategory !== 'All') {
-//       productsToDisplay = productsToDisplay.filter(product => product.category === selectedCategory);
-//     }
-
-//     // Apply sorting
-//     productsToDisplay.sort((a, b) => {
-//       switch (sortOrder) {
-//         case 'price-asc':
-//           return a.price - b.price;
-//         case 'price-desc':
-//           return b.price - a.price;
-//         default:
-//           // Optional: Add a default sort (e.g., by name or ID) if needed
-//           // return a.name.localeCompare(b.name);
-//           return 0;
-//       }
-//     });
-
-//     setFilteredProducts(productsToDisplay); // Update the state for rendering
-
-//   }, [allProducts, selectedCategory, sortOrder]); // Dependencies for this effect
-
-
-//   return (
-//     <div>
-//       <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-8">
-//         {t('navShop')}
-//       </h1>
-
-//       {/* Filter and Sort Controls */}
-//       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-//         {/* Category Filters - Use staticCategories now */}
-//         <div className="flex flex-wrap justify-center md:justify-start gap-2">
-//             {staticCategories.map(category => (
-//                 <button
-//                     key={category}
-//                     onClick={() => setSelectedCategory(category)}
-//                     // Disable buttons while loading
-//                     disabled={isLoading}
-//                     className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-//                         selectedCategory === category
-//                             ? 'bg-purple-600 text-white shadow'
-//                             : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-//                     }`}
-//                 >
-//                     {category}
-//                 </button>
-//             ))}
-//         </div>
-
-//         {/* Sort Dropdown */}
-//         <div>
-//             <label htmlFor="sort-order" className="sr-only">
-//                 {locale === 'am' ? 'ደርድር በ' : 'Sort by'}
-//             </label>
-//             <select
-//                 id="sort-order"
-//                 value={sortOrder}
-//                 onChange={(e) => setSortOrder(e.target.value as SortOption)}
-//                 // Disable dropdown while loading
-//                 disabled={isLoading}
-//                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-//             >
-//                 <option value="default">{locale === 'am' ? 'ነባሪ' : 'Default'}</option>
-//                 <option value="price-asc">{locale === 'am' ? 'ዋጋ፡ ከዝቅተኛ ወደ ከፍተኛ' : 'Price: Low to High'}</option>
-//                 <option value="price-desc">{locale === 'am' ? 'ዋጋ፡ ከከፍተኛ ወደ ዝቅተኛ' : 'Price: High to Low'}</option>
-//             </select>
-//         </div>
-//     </div>
-
-//      {/* Loading State Display */}
-//      {isLoading && (
-//         <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-//             {locale === 'am' ? 'ምርቶች እየተጫኑ ነው...' : 'Loading products...'}
-//             {/* You could add a spinner animation here */}
-//         </div>
-//      )}
-
-//      {/* Error State Display */}
-//      {!isLoading && error && (
-//         <div className="text-center py-12 text-red-600 dark:text-red-400">
-//             {locale === 'am' ? 'ስህተት ተፈጥሯል፡' : 'Error:'} {error}
-//         </div>
-//      )}
-
-//       {/* Product Grid - Render only if not loading and no error */}
-//       {!isLoading && !error && (
-//         <>
-//           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-//               {/* Map over filteredProducts now */}
-//               {filteredProducts.map((product) => (
-//                   <ProductCard key={product.id} {...product} />
-//               ))}
-//           </div>
-
-//           {/* Display message if no products match filters after loading */}
-//           {filteredProducts.length === 0 && (
-//               <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-//                   {locale === 'am' ? 'ምንም የሚዛመድ ምርት አልተገኘም።' : 'No products found matching your criteria.'}
-//               </div>
-//           )}
-//         </>
-//       )}
-
-//       {/* Placeholder for pagination - would interact with API fetching */}
-//       <div className="mt-12 text-center text-gray-500 dark:text-gray-400">
-//         [ Pagination might be added later / የገጽ ቁጥሮች በኋላ ሊጨመሩ ይችላሉ ]
-//       </div>
-//     </div>
-//   );
-// }
