@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
+import { jwtVerify } from "jose";
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const secretKey = new TextEncoder().encode(JWT_SECRET);
 
 export async function GET(
   request: NextRequest,
@@ -37,14 +40,31 @@ export async function POST(
 ) {
   try {
     const { productId } = await params;
-    const session = await getServerSession();
 
-    if (!session || !session.user || !session.user.email) {
+    // Verify authentication
+    if (!JWT_SECRET || secretKey.length === 0) {
+      return NextResponse.json(
+        { message: "Server configuration error" },
+        { status: 500 },
+      );
+    }
+
+    const token = request.cookies.get("sessionToken")?.value;
+    if (!token) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    let userId: string;
+    try {
+      const { payload } = await jwtVerify(token, secretKey);
+      userId = payload.userId as string;
+      if (!userId) throw new Error("Invalid token payload");
+    } catch (error) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: userId },
     });
 
     if (!user) {
