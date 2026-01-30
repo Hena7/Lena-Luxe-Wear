@@ -48,8 +48,8 @@ export default function RegisterPage() {
 
       setSuccessMessage(
         locale === "am"
-          ? "ምዝገባ ተሳክቷል! ወደ መግቢያ ገጽ ይመራሉ..."
-          : "Registration successful! Redirecting to login...",
+          ? "ምዝገባ ተሳክቷል! ወደ ግዢ ጋሪው ይመራሉ..."
+          : "Registration successful! Redirecting to shopping cart...",
       );
       setName("");
       setEmail("");
@@ -57,7 +57,7 @@ export default function RegisterPage() {
       setPassword("");
 
       setTimeout(() => {
-        router.push("/login");
+        router.push("/cart");
       }, 2000);
     } catch (err) {
       console.error("Registration form error:", err);
