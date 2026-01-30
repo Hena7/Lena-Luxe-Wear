@@ -4,40 +4,90 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
 import ProductCard from "@/components/products/ProductCard";
+import { useEffect, useState } from "react";
 
-const featuredProductsData = [
-  {
-    id: "prod-001",
-    name: "Classic Cotton T-Shirt",
-    price: 19.99,
-    imageUrl:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80",
-  },
-  {
-    id: "prod-002",
-    name: "Slim Fit Jeans",
-    price: 49.95,
-    imageUrl:
-      "https://images.unsplash.com/photo-1555689502-c4b22d76c56f?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fHNsaW0lMjBmaXQlMjBqZWFuc3xlbnwwfHwwfHx8MA%3D%3D",
-  },
-  {
-    id: "prod-003",
-    name: "Summer Floral Dress",
-    price: 65.0,
-    imageUrl:
-      "https://images.unsplash.com/photo-1595777457583-95e059d581b8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80",
-  },
-  {
-    id: "prod-004",
-    name: "Leather Belt",
-    price: 24.5,
-    imageUrl:
-      "https://images.unsplash.com/photo-1591117105338-4eb266b13c7d?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTJ8fGxlYXRoZXIlMjBiZWx0fGVufDB8fDB8fHww",
-  },
-];
+type Category = {
+  id: string;
+  name: string;
+};
+
+type Product = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  imageUrl: string | null;
+  stock: number;
+  categoryId: string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  category: Category | null;
+};
 
 export default function Home() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [sortOrder, setSortOrder] = useState("newest");
+  const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery) params.append("q", searchQuery);
+        if (selectedCategory !== "all")
+          params.append("category", selectedCategory);
+        if (minPrice) params.append("minPrice", minPrice);
+        if (maxPrice) params.append("maxPrice", maxPrice);
+        if (sortOrder) params.append("sort", sortOrder);
+
+        const response = await fetch(
+          `/api/products/search?${params.toString()}`,
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setProducts(data.products);
+        setCategories(data.categories);
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load products",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(() => {
+      fetchProducts();
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery, selectedCategory, minPrice, maxPrice, sortOrder]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedCategory("all");
+    setMinPrice("");
+    setMaxPrice("");
+    setSortOrder("newest");
+  };
 
   return (
     <div>
@@ -55,24 +105,6 @@ export default function Home() {
           {t("heroButton")}
         </Link>
       </section>
-
-      <section className="mb-12">
-        <h2 className="text-3xl font-semibold text-gray-800 dark:text-white mb-6 text-center">
-          {t("featuredProducts")}
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {featuredProductsData.map((product) => (
-            <ProductCard
-              key={product.id}
-              id={product.id}
-              name={product.name}
-              price={product.price}
-              imageUrl={product.imageUrl}
-            />
-          ))}
-        </div>
-      </section>
-
       <section>
         <h2 className="text-3xl font-semibold text-gray-800 dark:text-white mb-6 text-center">
           {t("shopByCategory")}
@@ -103,6 +135,32 @@ export default function Home() {
             {t("catAccessories")}
           </Link>
         </div>
+      </section>
+      <section className="mb-12">
+        {!isLoading && !error && (
+          <>
+            <div className="mb-12 text-sm text-gray-600 dark:text-gray-400"></div>
+
+            {products.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {products.map((product) => (
+                  <ProductCard key={product.id} {...product} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 text-gray-500 dark:text-gray-400">
+                <p className="text-lg font-medium mb-2">
+                  {locale === "am" ? "ምንም ምርት አልተገኘም" : "No products found"}
+                </p>
+                <p className="text-sm">
+                  {locale === "am"
+                    ? "የፍለጋ ደንቦችዎን ይለውጡ"
+                    : "Try adjusting your search criteria"}
+                </p>
+              </div>
+            )}
+          </>
+        )}
       </section>
     </div>
   );

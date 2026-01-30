@@ -15,6 +15,7 @@ import {
   MoonIcon,
   Bars3Icon,
   XMarkIcon,
+  CubeIcon,
 } from "@heroicons/react/24/outline";
 import {
   UserIcon as UserIconOutline,
@@ -170,10 +171,10 @@ export default function Header() {
                 <Link
                   href="/orders"
                   className="text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-150 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-                  aria-label="Account Profile"
-                  title="Account Profile"
+                  aria-label="Orders"
+                  title="Orders"
                 >
-                  <UserIconOutline className="w-6 h-6" aria-hidden="true" />
+                  <CubeIcon className="w-6 h-6" aria-hidden="true" />
                 </Link>
                 <button
                   onClick={handleLogout}
