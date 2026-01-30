@@ -1,18 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
+import { jwtVerify } from "jose";
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const secretKey = new TextEncoder().encode(JWT_SECRET);
+
+async function getUserFromToken(request: NextRequest) {
+  if (!JWT_SECRET || secretKey.length === 0) {
+    return null;
+  }
+
+  const token = request.cookies.get("sessionToken")?.value;
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, secretKey);
+    const userId = payload.userId as string;
+    if (!userId) return null;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    return user;
+  } catch (error) {
+    return null;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession();
-
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json([], { status: 200 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    const user = await getUserFromToken(request);
 
     if (!user) {
       return NextResponse.json([], { status: 200 });
@@ -42,18 +62,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession();
-
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    const user = await getUserFromToken(request);
 
     if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -108,18 +120,10 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession();
-
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    const user = await getUserFromToken(request);
 
     if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
