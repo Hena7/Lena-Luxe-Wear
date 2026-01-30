@@ -4,11 +4,12 @@ import { getServerSession } from "next-auth";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { productId: string } },
+  { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
+    const { productId } = await params;
     const reviews = await prisma.review.findMany({
-      where: { productId: params.productId },
+      where: { productId },
       include: {
         user: {
           select: {
@@ -32,9 +33,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { productId: string } },
+  { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
+    const { productId } = await params;
     const session = await getServerSession();
 
     if (!session || !session.user || !session.user.email) {
@@ -64,7 +66,7 @@ export async function POST(
         rating,
         comment,
         userId: user.id,
-        productId: params.productId,
+        productId,
       },
       include: {
         user: {
